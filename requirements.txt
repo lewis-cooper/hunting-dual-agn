@@ -1,0 +1,8 @@
+numpy>=2.0
+scipy>=1.13
+pandas>=2.0
+astropy>=7.0
+matplotlib>=3.8
+scikit-learn>=1.5
+dustmaps>=1.0
+# Install qso_p_color from the pinned public revision in README.md.
