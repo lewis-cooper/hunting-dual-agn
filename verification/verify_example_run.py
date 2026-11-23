@@ -97,6 +97,7 @@ figures = [
     'imaging/colour_redshift.pdf',
     'imaging/pre_morphology_separation.pdf',
     'joint/galactic_latitude.pdf',
+    'joint/separation_redshift.pdf',
 ]
 for name in figures:
     path = FIGURE_ROOT / name

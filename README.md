@@ -14,6 +14,7 @@ The core selection uses either the magnitude-dependent or magnitude-independent 
 | Calibrate the shared resolved-score threshold | [`calibrate_resolved_threshold.py`](scripts/calibrate_resolved_threshold.py) |
 | Build one-arcsecond selections and cut tables | [`select_one_arcsecond_candidates.py`](scripts/select_one_arcsecond_candidates.py) |
 | Build imaging selections and cut table | [`select_imaging_candidates.py`](scripts/select_imaging_candidates.py) |
+| Plot final-candidate separation versus redshift | [`plot_candidate_separation_redshift.py`](scripts/plot_candidate_separation_redshift.py) |
 
 Other modules prepare local input tables, combine the selected searches and
 produce score, colour and separation diagnostics. Shared model interfaces,
@@ -129,6 +130,20 @@ checks the paper's expected counts. Blended scoring is CPU intensive. Each
 parallel worker loads its model assets. Set `PAPER1_PYTHON` to choose the
 interpreter. For another sample, invoke the relevant modules and assess its
 results independently of the paper-specific count checks.
+
+The full workflow also plots the unique final candidates in projected proper
+separation versus adopted redshift, with Planck18 curves for fixed angular
+separations. To regenerate this figure directly from the final CSV:
+
+```sh
+python -m scripts.plot_candidate_separation_redshift
+```
+
+The plot is saved as `figures/joint/separation_redshift.pdf` and `.png` under
+`PAPER1_FIGURE_ROOT`. It uses only `products/final_candidates.csv` under
+`PAPER1_OUTPUT_ROOT`; shared systems are plotted once in their own group.
+Use `--candidates /path/to/final_candidates.csv` and `--figure-dir /path/to/figures`
+to override these paths. It needs no model assets or source catalogues.
 
 Input catalogues, cutouts and generated outputs are excluded from Git.
 The scripts generate the score audits and final catalogue locally from the

@@ -13,7 +13,7 @@ VETTING_STAGES = [
     'prepare_imaging_components', 'score_imaging_components', 'select_imaging_candidates',
     'combine_candidate_catalogues', 'prepare_photometry_inventory',
     'plot_one_arcsecond_results', 'plot_one_arcsecond_unresolved',
-    'plot_imaging_results', 'plot_joint_results',
+    'plot_imaging_results', 'plot_joint_results', 'plot_candidate_separation_redshift',
 ]
 
 
