@@ -1,16 +1,16 @@
 # Chance-alignment controls
 
-This is the supervisor control implementation integrated with QSO vetting.
-The 19 modules in `engine/` retain the supervisor implementation unchanged.
-The repository adds the bridge in `prepare_inputs.py` and the sequential
-commands in `scripts/run_chance_alignments.py` and `scripts/run_analysis.py`.
-The standalone runner's output-path guard permits a separate ignored workspace
-inside the repository; the scientific calculation is unchanged.
+This package tests the acceptance of unrelated source pairs using the
+production QSO scorers. The modules in `engine/` implement catalogue queries,
+matching, scoring and statistical summaries. `prepare_inputs.py` prepares the
+control inputs, and `scripts/run_chance_alignments.py` and
+`scripts/run_analysis.py` run the calculations in sequence. Generated controls
+and outputs are kept in a separate ignored workspace.
 
 The measured quantity is **P(pass | unrelated matched control, known outcome)**,
 for the brightness/redshift/sky distribution of the pre-vetting inputs.
-It is not a selected-sample contaminant count or purity. The literature search
-is not part of these calculations.
+It is not a selected-sample contaminant count or purity. The literature
+crossmatch is maintained separately and is not included in this repository.
 
 ## Complete sequence
 
@@ -74,7 +74,7 @@ under `run/paired_60000/`:
 - magnitude-matching and separate outer-neighbour density diagnostics;
 - `repaired_control_pass_rates.pdf` / `.png` and `RESULTS.md`.
 
-The `repaired` names are retained for compatibility with the supervisor scripts.
+Files with `repaired` in their names contain the matched-control results.
 No additional selected-candidate lists are written. The six existing vetting
 products are unaffected. `--resume` reuses completed steps and cached queries;
 changed input contents or settings require a new `workspace_directory`.
@@ -94,9 +94,9 @@ reference. It needs no production model assets or survey queries. A fresh rebuil
 does not need this archive: its input descriptors are generated from vetting and
 its field lists are sampled from the supplied full catalogues.
 
-The original supervisor-style entry points remain available under this package:
-`run_controls.py`, `reproduce_results.py` and `verify_models.py`. They accept the
-same standalone config/data layout as before. `verify_models.py` uses the small
+Standalone utilities are available under this package: `run_controls.py`,
+`reproduce_results.py` and `verify_models.py`. They accept explicit configuration
+and control-data paths. `verify_models.py` uses the small
 real scoring examples in the optional control-data archive and the corresponding
 standalone config; it is not needed to run the full repo sequence.
 

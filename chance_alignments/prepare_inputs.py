@@ -1,4 +1,4 @@
-"""Bridge the repo's vetting tables to the unchanged supervisor control workflow."""
+"""Prepare chance-alignment control inputs from the vetting tables."""
 
 import argparse
 from pathlib import Path

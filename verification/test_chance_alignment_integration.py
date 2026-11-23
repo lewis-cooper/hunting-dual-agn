@@ -1,4 +1,4 @@
-"""Check the repo connection without changing the supervisor calculation."""
+"""Check sequential execution and chance-alignment input connections."""
 
 import json
 from pathlib import Path

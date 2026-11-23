@@ -164,11 +164,12 @@ interpretation requires assessment of the method and source measurements.
 
 ## Run vetting followed by chance-alignment controls
 
-The chance-alignment implementation is the same as the supervisor scripts:
-the 19 helper modules in [`chance_alignments/engine`](chance_alignments/engine)
-retain the original calculations. The repo adds an input adapter and sequential
-runner; it does not change the scoring, matching, weighting, uncertainty or DCR rules.
-The literature search is outside this workflow.
+The chance-alignment workflow uses the modules in
+[`chance_alignments/engine`](chance_alignments/engine) for catalogue queries,
+matching, scoring and statistical summaries. An input adapter connects these
+calculations to the sequential vetting workflow.
+
+The literature crossmatch is maintained separately and is not included in this repository.
 
 After configuring the vetting inputs and model assets above, copy
 [`chance_alignment.example.json`](chance_alignment.example.json) to
@@ -185,7 +186,8 @@ This runs the existing vetting checks and stages in their original order,
 then constructs and scores chance-alignment controls. It prepares control
 inputs from the generated vetting tables, samples nested 30,000/60,000 fields,
 fetches survey controls, scores components and blends, and writes the statistical
-report. A fresh run does not require the supervisor ZIP or its saved control data.
+report. A fresh run builds its control inputs from the vetting tables and
+separately supplied parent catalogues; saved control data are optional.
 
 To run just the control calculations after vetting:
 

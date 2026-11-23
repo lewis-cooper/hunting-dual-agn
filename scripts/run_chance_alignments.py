@@ -1,4 +1,4 @@
-"""Connect the supervisor control scripts to the repository's vetting outputs."""
+"""Run chance-alignment controls from the repository's vetting outputs."""
 
 import argparse
 import hashlib
