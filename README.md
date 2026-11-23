@@ -1,6 +1,6 @@
 # Close-separation quasar candidate vetting
 
-First release of the scripts used for photometric QSO scoring and candidate vetting in the one-arcsecond and imaging searches. This repository contains the scripts and documentation. Input catalogues are supplied separately; score/flag exports, cut tables and diagnostic figures are generated locally and are excluded from Git.
+Scripts for photometric QSO scoring, candidate vetting, and random-control tests in the one-arcsecond and imaging searches. Input catalogues are supplied separately; score/flag exports, cut tables, control caches and diagnostic figures are generated locally and are excluded from Git.
 
 The core selection uses either the magnitude-dependent or magnitude-independent model, propagates Quaia redshift uncertainties, and applies the paper's PM and DCR rules.
 
@@ -103,7 +103,9 @@ the [SFD dust-map archive](https://doi.org/10.7910/DVN/EWCNL5), place both in an
 
 The code can be inspected without the input catalogues. Executing the analysis
 requires the prepared local files listed in [data/README.md](data/README.md).
-The scripts read those files; survey acquisition is performed separately.
+The vetting scripts read those files; acquisition of the vetting inputs is
+performed separately. The optional chance-alignment stage queries anonymous
+public Gaia/Legacy/MAST services for its control sources.
 
 ```sh
 export PAPER1_INPUT_ROOT=/path/to/prepared_inputs
@@ -159,3 +161,58 @@ and blended-likelihood checks also run when their working tables are available;
 otherwise they are reported as skipped. No verification report is added to
 `products/`. Testing supports implementation consistency; scientific
 interpretation requires assessment of the method and source measurements.
+
+## Run vetting followed by chance-alignment controls
+
+The chance-alignment implementation is the same as the supervisor scripts:
+the 19 helper modules in [`chance_alignments/engine`](chance_alignments/engine)
+retain the original calculations. The repo adds an input adapter and sequential
+runner; it does not change the scoring, matching, weighting, uncertainty or DCR rules.
+The literature search is outside this workflow.
+
+After configuring the vetting inputs and model assets above, copy
+[`chance_alignment.example.json`](chance_alignment.example.json) to
+`chance_alignment.local.json`. Set the paths to the full Gaia-linked quasar
+master and published Quaia catalogue described in the [input guide](data/README.md).
+Then run the complete sequence:
+
+```sh
+python -m scripts.run_analysis --chance-config chance_alignment.local.json --dry-run
+python -m scripts.run_analysis --chance-config chance_alignment.local.json --resume
+```
+
+This runs the existing vetting checks and stages in their original order,
+then constructs and scores chance-alignment controls. It prepares control
+inputs from the generated vetting tables, samples nested 30,000/60,000 fields,
+fetches survey controls, scores components and blends, and writes the statistical
+report. A fresh run does not require the supervisor ZIP or its saved control data.
+
+To run just the control calculations after vetting:
+
+```sh
+python -m scripts.run_chance_alignments --config chance_alignment.local.json --resume
+```
+
+Individual control stages are `prepare`, `fetch`, `components`, `blends`, and
+`report`, in that order. Use `--stage NAME` to run a stage separately. Logs,
+queries and scoring checkpoints are kept under `chance_alignment_work/` by
+default; the combined report is
+`chance_alignment_work/run/paired_60000/RESULTS.md`. The six vetting products
+remain in their existing output directory. Nothing in the control workspace
+is committed to Git.
+
+The controls measure **P(pass | unrelated matched control, known outcome)**.
+They do not estimate contamination of a selected candidate catalogue. One-Gaia
+imaging retains the empirical DCR survival factor from the real cut flow;
+it is not a direct DCR-angle measurement on the re-paired controls. Missing
+outcomes and repeated source identities are retained in the statistical analysis.
+See the [control workflow guide](chance_alignments/README.md) for details.
+
+For an offline replay using separately supplied saved control data:
+
+```sh
+python -m scripts.run_chance_alignments --replay-data /path/to/control_data --verify-reference
+```
+
+This recalculates the rates, uncertainty and figures without survey queries
+or model evaluation. The saved control data are optional and excluded from Git.

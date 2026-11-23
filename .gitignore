@@ -20,3 +20,6 @@ data/inputs/
 data/input_sha256.json
 data/visual_inspection_rejections.csv
 cutouts/
+chance_alignment.local.json
+control_data/
+chance_alignment_control_data.zip

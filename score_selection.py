@@ -15,7 +15,9 @@ def has_two_distinct_gaia_sources(primary_source_id, secondary_source_id):
     secondary = secondary_source_id.astype('string')
     primary_valid = primary.str.fullmatch('[1-9][0-9]*', na=False)
     secondary_valid = secondary.str.fullmatch('[1-9][0-9]*', na=False)
-    return (primary_valid & secondary_valid & primary.ne(secondary)).fillna(False)
+    # Use one nullable-boolean backend before combining string comparisons.
+    different = primary.ne(secondary).fillna(False).astype('boolean')
+    return primary_valid.astype('boolean') & secondary_valid.astype('boolean') & different
 
 
 def build_secondary_pm_flags(pm_significance, two_gaia, threshold):

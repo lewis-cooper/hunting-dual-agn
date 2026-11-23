@@ -1,0 +1,7 @@
+{
+  "master_catalogue": "data/inputs/quasar_master.csv",
+  "quaia_catalogue": "data/inputs/quaia_G20.0.fits",
+  "workspace_directory": "chance_alignment_work",
+  "workers": 4,
+  "bootstrap": 1000
+}

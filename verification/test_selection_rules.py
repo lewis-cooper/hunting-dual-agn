@@ -46,6 +46,16 @@ class SecondaryPMSelectionTests(unittest.TestCase):
         self.assertEqual(has_two_distinct_gaia_sources(primary, secondary).tolist(),
                          [True, False, False, False])
 
+    def test_missing_and_placeholder_ids_work_with_both_string_backends(self):
+        for storage in ['python', 'pyarrow']:
+            with self.subTest(storage=storage):
+                dtype = pd.StringDtype(storage=storage)
+                primary = pd.Series(['1000993221264706432'] * 8, dtype=dtype)
+                secondary = pd.Series(['1000993221264706433', '1000993221264706432',
+                                       '0', None, '', 'nan', '1.0', '-2'], dtype=dtype)
+                self.assertEqual(has_two_distinct_gaia_sources(primary, secondary).tolist(),
+                                 [True, False, False, False, False, False, False, False])
+
 
 class QuaiaUncertaintyJoinTests(unittest.TestCase):
     def setUp(self):
