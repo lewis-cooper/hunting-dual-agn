@@ -5,6 +5,10 @@ in this release. The scripts operate on prepared tables from the research
 analysis. Set `PAPER1_INPUT_ROOT` to a directory containing the files below.
 This directory is ignored by Git when placed at `data/inputs/`.
 
+The two small, cited literature reference snapshots in
+[`literature/`](literature/README.md) are included in the repository and are
+separate from these external survey inputs.
+
 ## Catalogue and photometry files
 
 | Files | Role and keys |

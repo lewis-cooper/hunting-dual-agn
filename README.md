@@ -14,6 +14,7 @@ The core selection uses either the magnitude-dependent or magnitude-independent 
 | Calibrate the shared resolved-score threshold | [`calibrate_resolved_threshold.py`](scripts/calibrate_resolved_threshold.py) |
 | Build one-arcsecond selections and cut tables | [`select_one_arcsecond_candidates.py`](scripts/select_one_arcsecond_candidates.py) |
 | Build imaging selections and cut table | [`select_imaging_candidates.py`](scripts/select_imaging_candidates.py) |
+| Crossmatch published systems and remove confirmed contaminants | [`crossmatch_literature.py`](scripts/crossmatch_literature.py) |
 | Plot final-candidate separation versus redshift | [`plot_candidate_separation_redshift.py`](scripts/plot_candidate_separation_redshift.py) |
 
 Other modules prepare local input tables, combine the selected searches and
@@ -27,7 +28,7 @@ the two score audits contain every assessed input, including rejected systems.
 
 | Product | Purpose |
 | --- | --- |
-| `final_candidates.csv` | The unique combined final candidate catalogue. |
+| `final_candidates.csv` | The unique combined candidate catalogue after confirmed literature contaminant removal, including literature flags and citations. |
 | `one_arcsecond_scores.csv` | Scores, route assignments and flags for all 712 one-arcsecond inputs. |
 | `imaging_scores.csv` | Both-component scores and selection flags for all 1,600 imaging inputs. |
 | `one_arcsecond_cutflow.csv` | Cumulative counts for the resolved and unresolved routes. |
@@ -44,10 +45,50 @@ inputs. Route-specific selected-candidate lists are not written.
 Read Gaia and candidate identifiers as strings. Missing scores have status or
 reason fields and must not be interpreted as measured zero scores.
 
-For the paper's input sample, the workflow produced 100 resolved one-arcsecond, 44 unresolved
-one-arcsecond and 334 imaging systems, with 35 shared systems and **443 unique
-candidates**. The manuscript's 415-system sample additionally applies 28
-literature-contaminant exclusions outside this vetting workflow.
+The prepared inputs produce 443 unique systems before the literature stage:
+100 resolved one-arcsecond, 44 unresolved one-arcsecond and 334 imaging systems,
+with 35 shared systems. The bundled reference snapshot identifies 32 confirmed
+contaminants, leaving **411 final candidates**: 88 resolved, 41 unresolved and
+310 imaging systems, with 28 shared. Seven final candidates have verified
+matches to confirmed dual AGN. Uncertain classifications are retained and flagged.
+
+## Literature comparison and exclusions
+
+Two curated reference CSVs are included under [`data/literature`](data/literature/README.md):
+[`known_binaries.csv`](data/literature/known_binaries.csv) and
+[`known_lenses_contaminants.csv`](data/literature/known_lenses_contaminants.csv).
+They contain published positions, redshifts, separations, classifications and
+publication provenance. Multiple image pairs or papers can describe the same
+system; match counts deduplicate by candidate ID.
+
+The automatic literature stage follows cross-pipeline deduplication. Confirmed
+dual references use $0\leq z\leq4$ and $0<\theta\leq1.5''$. A positional finder
+radius of $1''$ retrieves associations; redshift is not a matching criterion.
+Pair identity requires two distinct Gaia IDs, agreement of both component
+positions, or documented published pair geometry. A finder association alone
+does not remove a candidate. The reference guide explains the astrometric
+tolerances and qualified classifications, including the retained likely lens
+J0823+2418.
+
+Only verified, confirmed lenses, quasar–star/galaxy pairs, stellar pairs and
+published projected quasar pairs are removed. Uncertain or conflicting
+classifications remain flagged in the final catalogue. This is a literature
+classification audit, not a measurement of sample completeness or purity.
+
+To rerun this part after the selection stages:
+
+```sh
+python -m scripts.combine_candidate_catalogues
+python -m scripts.crossmatch_literature
+```
+
+The single final catalogue stays in `products/final_candidates.csv`. Both
+all-input score audits gain literature flags and `literature_final_pass`; their
+original selection flags and scores retain their pre-literature meaning. Both
+cut tables gain a final exclusion row, including both scoring-model variants.
+The combined pre-literature table and detailed associations, candidate audit
+and summary are kept in the ignored working directory under `PAPER1_WORK_ROOT`.
+The literature stage runs offline from the two bundled CSVs.
 
 ## Selection rules
 
@@ -184,7 +225,9 @@ The chance-alignment workflow uses the modules in
 matching, scoring and statistical summaries. An input adapter connects these
 calculations to the sequential vetting workflow.
 
-The literature crossmatch is maintained separately and is not included in this repository.
+The literature stage runs before the final-candidate plots. Chance-alignment
+controls continue to use the input populations and scoring rules; they do not
+use the literature-cleaned candidate sample to estimate method false positives.
 
 After configuring the vetting inputs and model assets above, copy
 [`chance_alignment.example.json`](chance_alignment.example.json) to

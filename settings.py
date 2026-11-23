@@ -9,6 +9,9 @@ FIGURE_ROOT = Path(os.environ.get('PAPER1_FIGURE_ROOT', ROOT / 'figures')).expan
 WORK_ROOT = Path(os.environ.get(
     'PAPER1_WORK_ROOT', OUTPUT_ROOT.parent / f'{OUTPUT_ROOT.name}_work')).expanduser()
 FINAL_CANDIDATES_PATH = OUTPUT_ROOT / 'final_candidates.csv'
+PRE_LITERATURE_CANDIDATES_PATH = WORK_ROOT / 'joint_candidates_before_literature.csv'
+LITERATURE_ROOT = ROOT / 'data/literature'
+LITERATURE_WORK_ROOT = WORK_ROOT / 'literature'
 ONE_ARCSECOND_SCORES_PATH = OUTPUT_ROOT / 'one_arcsecond_scores.csv'
 IMAGING_SCORES_PATH = OUTPUT_ROOT / 'imaging_scores.csv'
 ONE_ARCSECOND_CUTFLOW_PATH = OUTPUT_ROOT / 'one_arcsecond_cutflow.csv'

@@ -275,6 +275,8 @@ joint_candidates['plot_group'] = np.select(
     ],
     default='Imaging: two Gaia'
 )
+WORK_ROOT.mkdir(parents=True, exist_ok=True)
+joint_candidates.to_csv(PRE_LITERATURE_CANDIDATES_PATH, index=False)
 joint_candidates.to_csv(FINAL_CANDIDATES_PATH, index=False)
 print(
     'Output:',

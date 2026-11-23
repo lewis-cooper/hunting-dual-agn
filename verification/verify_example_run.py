@@ -1,6 +1,7 @@
 """Check the six paper products and any available detailed working tables."""
 
 import json
+import hashlib
 from pathlib import Path
 import sys
 
@@ -13,6 +14,7 @@ from settings import (FIGURE_ROOT, IDENTIFIER_DTYPES, ONE_ROOT, OUTPUT_ROOT,
                       FINAL_CANDIDATES_PATH, ONE_ARCSECOND_SCORES_PATH,
                       IMAGING_SCORES_PATH, IMAGING_CUTFLOW_PATH,
                       THRESHOLD_CALIBRATION_PATH, PM_SIGNIFICANCE_MAX)
+from settings import LITERATURE_ROOT, LITERATURE_WORK_ROOT, ONE_ARCSECOND_CUTFLOW_PATH
 from score_selection import build_secondary_pm_flags, has_two_distinct_gaia_sources
 
 calibration = json.loads(THRESHOLD_CALIBRATION_PATH.read_text())
@@ -64,9 +66,37 @@ checks = {
                                               'adopted_redshift_error_used'].gt(0).all()),
     'joint_counts': (len(joint), joint.candidate_id.nunique(), joint.selected_by_resolved.sum(),
                      joint.selected_by_unresolved.sum(), joint.selected_by_imaging.sum(),
-                     joint.selected_by_both_searches.sum()) == (443, 443, 100, 44, 334, 35),
+                     joint.selected_by_both_searches.sum()) == (411, 411, 88, 41, 310, 28),
+    'confirmed_contaminants_removed': not joint.literature_contaminant_removed.any(),
+    'confirmed_dual_matches': int(joint.literature_confirmed_dual.sum()) == 7,
+    'uncertain_lens_retained': bool((joint.literature_system_names.str.contains('0823\\+2418', na=False)
+                                     & joint.literature_uncertain_classification).any()),
+    'final_score_audit_counts': (int(one_arcsecond.literature_final_pass.sum()),
+                                 int(imaging.literature_final_pass.sum())) == (129, 310),
 }
 skipped_checks = []
+literature_audit_path = LITERATURE_WORK_ROOT / 'candidate_audit.csv'
+literature_summary_path = LITERATURE_WORK_ROOT / 'summary.json'
+if literature_audit_path.is_file() and literature_summary_path.is_file():
+    literature_audit = pd.read_csv(literature_audit_path, dtype=IDENTIFIER_DTYPES)
+    literature_summary = json.loads(literature_summary_path.read_text())
+    removed = literature_audit.literature_contaminant_removed
+    checks['literature_exclusion_audit'] = bool(
+        len(literature_audit) == 443 and removed.sum() == 32
+        and set(literature_audit.loc[~removed, 'candidate_id']) == set(joint.candidate_id)
+        and literature_summary['counts']['final_candidates'] == len(joint))
+    checks['literature_snapshot_hashes'] = all(
+        hashlib.sha256((LITERATURE_ROOT / name).read_bytes()).hexdigest() == expected
+        for name, expected in literature_summary['reference_sha256'].items())
+else:
+    skipped_checks.append('Detailed literature associations: requires the literature working audit.')
+one_cutflow = pd.read_csv(ONE_ARCSECOND_CUTFLOW_PATH)
+literature_stage = 'Confirmed literature contaminant removal'
+one_final_rows = one_cutflow.loc[one_cutflow['Selection stage'].eq(literature_stage)]
+imaging_final_row = imaging_cutflow.loc[imaging_cutflow['Selection stage'].eq(literature_stage)]
+checks['literature_cutflow_counts'] = (
+    one_final_rows.set_index('Route')['Either model'].to_dict() == {'Resolved': 88, 'Unresolved': 41}
+    and len(imaging_final_row) == 1 and int(imaging_final_row.Total.iloc[0]) == 310)
 fit_path = ONE_ROOT / 'threshold_fit_candidates.csv'
 if fit_path.is_file():
     fit = pd.read_csv(fit_path)

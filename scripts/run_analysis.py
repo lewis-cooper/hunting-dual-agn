@@ -11,7 +11,7 @@ VETTING_STAGES = [
     'calibrate_resolved_threshold', 'score_one_arcsecond_unresolved',
     'select_one_arcsecond_candidates', 'select_imaging_precolour',
     'prepare_imaging_components', 'score_imaging_components', 'select_imaging_candidates',
-    'combine_candidate_catalogues', 'prepare_photometry_inventory',
+    'combine_candidate_catalogues', 'crossmatch_literature', 'prepare_photometry_inventory',
     'plot_one_arcsecond_results', 'plot_one_arcsecond_unresolved',
     'plot_imaging_results', 'plot_joint_results', 'plot_candidate_separation_redshift',
 ]

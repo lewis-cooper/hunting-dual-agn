@@ -9,8 +9,10 @@ and outputs are kept in a separate ignored workspace.
 
 The measured quantity is **P(pass | unrelated matched control, known outcome)**,
 for the brightness/redshift/sky distribution of the pre-vetting inputs.
-It is not a selected-sample contaminant count or purity. The literature
-crossmatch is maintained separately and is not included in this repository.
+It is not a selected-sample contaminant count or purity. The separate
+literature stage is documented in the [main README](../README.md); it removes
+verified, confirmed contaminants from the candidate catalogue without changing
+the populations or scorers used by these method-level controls.
 
 ## Complete sequence
 
