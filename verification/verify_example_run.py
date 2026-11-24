@@ -14,7 +14,8 @@ from settings import (FIGURE_ROOT, IDENTIFIER_DTYPES, ONE_ROOT, OUTPUT_ROOT,
                       FINAL_CANDIDATES_PATH, ONE_ARCSECOND_SCORES_PATH,
                       IMAGING_SCORES_PATH, IMAGING_CUTFLOW_PATH,
                       THRESHOLD_CALIBRATION_PATH, PM_SIGNIFICANCE_MAX)
-from settings import LITERATURE_ROOT, LITERATURE_WORK_ROOT, ONE_ARCSECOND_CUTFLOW_PATH
+from settings import (IMAGING_SEARCH_ROOT, LITERATURE_ROOT, LITERATURE_WORK_ROOT,
+                      ONE_ARCSECOND_CUTFLOW_PATH)
 from score_selection import build_secondary_pm_flags, has_two_distinct_gaia_sources
 
 calibration = json.loads(THRESHOLD_CALIBRATION_PATH.read_text())
@@ -75,6 +76,21 @@ checks = {
                                  int(imaging.literature_final_pass.sum())) == (129, 310),
 }
 skipped_checks = []
+search_summary_path = IMAGING_SEARCH_ROOT / 'search_summary.json'
+if search_summary_path.is_file():
+    search_summary = json.loads(search_summary_path.read_text())
+    search_counts = search_summary['counts']
+    checks['imaging_candidate_search_counts'] = (
+        search_summary['stage'] == 'all' and search_summary['network_access'] is False
+        and tuple(search_counts[name] for name in ['master_rows','initial_psf_pairs',
+             'validated_psf_pairs','primary_has_gaia','one_gaia','two_gaia'])
+        == (1352247,16947,14369,13803,12559,1244))
+    checks['imaging_search_generated_inputs'] = all(
+        (IMAGING_SEARCH_ROOT/name).is_file()
+        and hashlib.sha256((IMAGING_SEARCH_ROOT/name).read_bytes()).hexdigest() == expected
+        for name,expected in search_summary['output_sha256'].items())
+else:
+    skipped_checks.append('Detailed imaging candidate search: requires the search working tables.')
 literature_audit_path = LITERATURE_WORK_ROOT / 'candidate_audit.csv'
 literature_summary_path = LITERATURE_WORK_ROOT / 'summary.json'
 if literature_audit_path.is_file() and literature_summary_path.is_file():

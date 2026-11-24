@@ -1,0 +1,10 @@
+{
+  "master_catalogue": "data/inputs/quasar_master.csv",
+  "tractor_catalogues": ["data/inputs/tractor/*.fits"],
+  "tractor_coverage": "data/inputs/tractor_query_coverage.csv",
+  "gaia_catalogue": "data/inputs/gaia_sources.fits",
+  "gaia_coverage": "data/inputs/gaia_query_coverage.csv",
+  "ccd_catalogue": "data/inputs/legacy_g_ccds.fits",
+  "ccd_coverage": "data/inputs/ccd_query_coverage.csv",
+  "quaia_catalogue": "data/inputs/quaia_G20.0.fits"
+}

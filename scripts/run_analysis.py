@@ -7,6 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 VETTING_STAGES = [
+    'search_imaging_candidates',
     'prepare_one_arcsecond_inputs', 'score_one_arcsecond_resolved',
     'calibrate_resolved_threshold', 'score_one_arcsecond_unresolved',
     'select_one_arcsecond_candidates', 'select_imaging_precolour',
@@ -17,13 +18,20 @@ VETTING_STAGES = [
 ]
 
 
-def commands(stage, chance_config=None, resume=False):
+def commands(stage, chance_config=None, resume=False, imaging_search_config=None):
     result = []
+    search_command = [sys.executable, '-u', '-m', 'scripts.search_imaging_candidates',
+        '--config', str((imaging_search_config or ROOT/'imaging_search.local.json').resolve())]
+    if resume:
+        search_command.append('--resume')
+    if stage == 'imaging-search':
+        return [search_command]
     if stage in ['all', 'vetting']:
         result += [[sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'verification', '-p', 'test_*.py'],
                    [sys.executable, '-B', 'verification/verify_redshift_uncertainty.py'],
-                   [sys.executable, '-B', 'verification/verify_input_contracts.py']]
-        result += [[sys.executable, '-u', '-m', 'scripts.'+name] for name in VETTING_STAGES]
+                   [sys.executable, '-B', 'verification/verify_input_contracts.py', '--external-only']]
+        result += [search_command, [sys.executable, '-B', 'verification/verify_input_contracts.py']]
+        result += [[sys.executable, '-u', '-m', 'scripts.'+name] for name in VETTING_STAGES[1:]]
         result.append([sys.executable, '-B', 'verification/verify_example_run.py'])
     if stage in ['all', 'chance-alignments']:
         if chance_config is None:
@@ -38,13 +46,14 @@ def commands(stage, chance_config=None, resume=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--stage', choices=['all', 'vetting', 'chance-alignments'], default='all')
+    parser.add_argument('--stage', choices=['all', 'vetting', 'imaging-search', 'chance-alignments'], default='all')
     parser.add_argument('--chance-config', type=Path)
-    parser.add_argument('--resume', action='store_true', help='Reuse completed chance-alignment checkpoints')
+    parser.add_argument('--imaging-search-config', type=Path, help='Local imaging-search catalogue configuration')
+    parser.add_argument('--resume', action='store_true', help='Reuse verified imaging-search and chance-alignment checkpoints')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     try:
-        sequence = commands(args.stage, args.chance_config, args.resume)
+        sequence = commands(args.stage, args.chance_config, args.resume, args.imaging_search_config)
     except ValueError as error:
         parser.error(str(error))
     for command in sequence:

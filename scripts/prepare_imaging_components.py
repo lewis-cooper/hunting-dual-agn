@@ -14,11 +14,11 @@ candidate_systems = pd.read_csv(
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )
-quaia_reference = read_fits(INPUT_ROOT / 'quaia_imaging_reference.fits')
+quaia_reference = read_fits(IMAGING_INPUT_ROOT / 'quaia_imaging_reference.fits')
 candidate_systems = attach_quaia_redshift_errors(candidate_systems, quaia_reference)
 candidate_systems.to_csv(IMAGING_ROOT / 'precolour_systems.csv', index=False)
-component_rows = read_fits(INPUT_ROOT / 'imaging_components.fits')
-tractor_sources = read_fits(INPUT_ROOT / 'imaging_tractor.fits')
+component_rows = read_fits(IMAGING_INPUT_ROOT / 'imaging_components.fits')
+tractor_sources = read_fits(IMAGING_INPUT_ROOT / 'imaging_tractor.fits')
 component_photometry = prepare_component_photometry(candidate_systems, component_rows, tractor_sources)
 component_photometry['reference_snr_pass'] = component_photometry.r_snr.ge(10)
 component_photometry['latitude_pass'] = component_photometry.galactic_abs_b_deg.ge(25)

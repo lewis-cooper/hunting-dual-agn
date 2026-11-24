@@ -24,7 +24,10 @@ Install the dependencies and configure the input/model paths in the
 python -m scripts.run_analysis --chance-config chance_alignment.local.json --resume
 ```
 
-This runs the existing vetting stages and checks first, then the control stages.
+This runs the local imaging candidate search, vetting/literature stages and
+checks first, then the control stages. The control adapter reads the generated
+imaging component/Tractor tables from the search workspace. The control
+scorers and statistical calculations are unchanged.
 The existing `run_frozen_analysis.sh` remains a vetting-only entry point, now
 delegating to the same Python sequence so its stage order is maintained in one place.
 

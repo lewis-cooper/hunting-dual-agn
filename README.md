@@ -1,6 +1,6 @@
-# Close-separation quasar candidate vetting
+# Close-separation quasar candidate search and vetting
 
-Scripts for photometric QSO scoring, candidate vetting, and random-control tests in the one-arcsecond and imaging searches. Input catalogues are supplied separately; score/flag exports, cut tables, control caches and diagnostic figures are generated locally and are excluded from Git.
+Scripts for imaging candidate discovery, photometric QSO scoring, candidate vetting, and random-control tests. The imaging workflow starts from a Gaia-linked quasar master and local survey catalogues, finds the initial pairs, and generates its own component-association tables. The one-arcsecond route starts from the prepared 712-system input. Survey data are supplied separately; score/flag exports, cut tables, control caches and diagnostic figures are generated locally and excluded from Git.
 
 The core selection uses either the magnitude-dependent or magnitude-independent model, propagates Quaia redshift uncertainties, and applies the paper's PM and DCR rules.
 
@@ -8,6 +8,7 @@ The core selection uses either the magnitude-dependent or magnitude-independent 
 
 | Task | Script |
 | --- | --- |
+| Find initial imaging pairs and build component associations | [`search_imaging_candidates.py`](scripts/search_imaging_candidates.py) |
 | Score resolved companions | [`score_one_arcsecond_resolved.py`](scripts/score_one_arcsecond_resolved.py) |
 | Score blended systems | [`score_one_arcsecond_unresolved.py`](scripts/score_one_arcsecond_unresolved.py) |
 | Score imaging components | [`score_imaging_components.py`](scripts/score_imaging_components.py) |
@@ -30,7 +31,7 @@ the two score audits contain every assessed input, including rejected systems.
 | --- | --- |
 | `final_candidates.csv` | The unique combined candidate catalogue after confirmed literature contaminant removal, including literature flags and citations. |
 | `one_arcsecond_scores.csv` | Scores, route assignments and flags for all 712 one-arcsecond inputs. |
-| `imaging_scores.csv` | Both-component scores and selection flags for all 1,600 imaging inputs. |
+| `imaging_scores.csv` | Both-component scores and selection flags for the 1,600 imaging systems passed to scoring. |
 | `one_arcsecond_cutflow.csv` | Cumulative counts for the resolved and unresolved routes. |
 | `imaging_cutflow.csv` | Cumulative counts for the one-Gaia and two-Gaia imaging tiers. |
 | `threshold_calibration.json` | The calibrated threshold and fit summary. |
@@ -45,7 +46,7 @@ inputs. Route-specific selected-candidate lists are not written.
 Read Gaia and candidate identifiers as strings. Missing scores have status or
 reason fields and must not be interpreted as measured zero scores.
 
-The prepared inputs produce 443 unique systems before the literature stage:
+The reference input catalogues produce 443 unique systems before the literature stage:
 100 resolved one-arcsecond, 44 unresolved one-arcsecond and 334 imaging systems,
 with 35 shared systems. The bundled reference snapshot identifies 32 confirmed
 contaminants, leaving **411 final candidates**: 88 resolved, 41 unresolved and
@@ -144,10 +145,13 @@ the [SFD dust-map archive](https://doi.org/10.7910/DVN/EWCNL5), place both in an
 ## Run with separately supplied data
 
 The code can be inspected without the input catalogues. Executing the analysis
-requires the prepared local files listed in [data/README.md](data/README.md).
-The vetting scripts read those files; acquisition of the vetting inputs is
-performed separately. The optional chance-alignment stage queries anonymous
-public Gaia/Legacy/MAST services for its control sources.
+requires the local files listed in [data/README.md](data/README.md): the
+prepared one-arcsecond inputs, the imaging master and survey measurements,
+and the externally supplied morphology/visual-inspection decisions. The imaging
+search is entirely offline. It reads local Tractor, Gaia and g-band CCD
+catalogues with query-coverage metadata, then rebuilds the tables used by vetting.
+The optional chance-alignment stage queries anonymous public Gaia/Legacy/MAST
+services for its control sources.
 
 ```sh
 export PAPER1_INPUT_ROOT=/path/to/prepared_inputs
@@ -158,16 +162,56 @@ export PAPER1_OUTPUT_ROOT="$PWD/products_independent"
 export PAPER1_FIGURE_ROOT="$PWD/figures_independent"
 ```
 
+Copy [`imaging_search.example.json`](imaging_search.example.json) to
+`imaging_search.local.json` and set its local catalogue/coverage paths. Paths
+and glob patterns are resolved relative to the config file. Check availability
+or run just the imaging search without loading the QSO models:
+
+```sh
+python -m scripts.search_imaging_candidates --config imaging_search.local.json --check-inputs
+python -m scripts.run_analysis --stage imaging-search --resume
+```
+
+To find the initial pairs before Gaia/CCD data are available:
+
+```sh
+python -m scripts.search_imaging_candidates --config imaging_search.local.json --stage discover
+```
+
+This writes the discovered pairs and explicit `gaia_query_positions.csv` and
+`ccd_query_positions.csv` request tables under `products_work/imaging_search/`.
+It does not fetch those data. Complete Gaia/CCD inputs and their coverage logs
+are required before the following association and vetting stages can run.
+
+The search resolves overlapping DR9 north/south photometry, ranks the sources
+within 1.5 arcsec of each Gaia parent, validates two positive-flux PSF components,
+and matches each to local Gaia DR3 sources within 0.7 arcsec. The original fixed
+primary assignment uses a redshift-local nearest-Tractor g-r reference with
+the target itself excluded. DCR axes are rebuilt from quality-selected g-band
+CCDs using their WCS, observing times and exposure/noise weights. These steps
+preserve the existing search implementation; the later PM/DCR selection rules
+remain in the vetting stages.
+
+Generated imaging inputs live in `products_work/imaging_search/inputs/`, or
+under the equivalent `PAPER1_WORK_ROOT`. Completed searches can be resumed only
+when the source-file, code, parameter and generated-output hashes agree. The
+master is supplied as an input catalogue; merging the original SDSS/DESI/Quaia
+survey releases into that master is outside this workflow.
+
 Individual stages run with `python -m scripts.MODULE` after their preceding
-stages have produced the required intermediate files. To run the paper's full
-workflow with its prepared inputs:
+stages have produced the required intermediate files. To run the full local
+search and vetting workflow after configuring its external inputs:
 
 ```sh
 PAPER1_BLEND_WORKERS=4 sh run_frozen_analysis.sh
 ```
 
-This runner checks input availability, executes scoring and selection, and
-checks the paper's expected counts. Blended scoring is CPU intensive. Each
+This runner checks external inputs, runs the imaging candidate search, validates
+its generated tables, executes scoring/selection and literature exclusions,
+and checks the paper's expected counts. It performs no imaging-data downloads.
+Blended scoring memoizes identical population-prior evaluations in memory using
+the same value-preserving cache as the control scorer. It still calculates every
+system's likelihoods from the supplied photometry. Scoring is CPU intensive. Each
 parallel worker loads its model assets. Set `PAPER1_PYTHON` to choose the
 interpreter. For another sample, invoke the relevant modules and assess its
 results independently of the paper-specific count checks.
@@ -187,8 +231,8 @@ Use `--candidates /path/to/final_candidates.csv` and `--figure-dir /path/to/figu
 to override these paths. It needs no model assets or source catalogues.
 
 Input catalogues, cutouts and generated outputs are excluded from Git.
-The scripts generate the score audits and final catalogue locally from the
-prepared inputs.
+The scripts generate the initial imaging pairs, score audits and final
+catalogue locally from the configured inputs.
 
 ## Verification
 
@@ -205,8 +249,8 @@ With external input paths configured, check execution prerequisites using:
 python verification/verify_input_contracts.py
 ```
 
-After running the workflow with the paper's prepared inputs, its score
-outputs and figures can be checked with:
+After running the workflow with the paper's input catalogues and measurement
+tables, its score outputs and figures can be checked with:
 
 ```sh
 python verification/verify_example_run.py
@@ -229,7 +273,7 @@ The literature stage runs before the final-candidate plots. Chance-alignment
 controls continue to use the input populations and scoring rules; they do not
 use the literature-cleaned candidate sample to estimate method false positives.
 
-After configuring the vetting inputs and model assets above, copy
+After configuring the imaging search, vetting inputs and model assets above, copy
 [`chance_alignment.example.json`](chance_alignment.example.json) to
 `chance_alignment.local.json`. Set the paths to the full Gaia-linked quasar
 master and published Quaia catalogue described in the [input guide](data/README.md).
@@ -240,8 +284,9 @@ python -m scripts.run_analysis --chance-config chance_alignment.local.json --dry
 python -m scripts.run_analysis --chance-config chance_alignment.local.json --resume
 ```
 
-This runs the existing vetting checks and stages in their original order,
-then constructs and scores chance-alignment controls. It prepares control
+This runs the offline imaging search, vetting and literature stages first,
+then constructs and scores chance-alignment controls. The latter can fetch
+survey data; use `--stage vetting` for a local-only run. It prepares control
 inputs from the generated vetting tables, samples nested 30,000/60,000 fields,
 fetches survey controls, scores components and blends, and writes the statistical
 report. A fresh run builds its control inputs from the vetting tables and

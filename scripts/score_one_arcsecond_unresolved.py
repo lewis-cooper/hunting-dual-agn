@@ -13,6 +13,7 @@ from qso_pcolor import Photometry
 from qso_pcolor.blend import BlendModel
 from photometry import configure_dustmaps, saved_true
 from redshift_uncertainty import blend_score_with_redshift_error
+from chance_alignments.engine.cache_blend_priors import cache_population_priors
 
 
 def load_worker_dustmaps():
@@ -24,7 +25,7 @@ def load_worker_dustmaps():
 
 @lru_cache(maxsize=2)
 def cached_blend_model(model_path):
-    return BlendModel.load(model_path)
+    return cache_population_priors(BlendModel.load(model_path))
 
 
 def score_batch(blend_model, model_name, photometry, coordinates, group_ids):
@@ -121,7 +122,7 @@ def main():
         ['decals_dr9_south', 'decals_dr9_north'],
         default='none'
     )
-    blend_models = {name: BlendModel.load(record['bundle']) for name, record in model_bundles.items()}
+    blend_models = {name: cached_blend_model(record['bundle']) for name, record in model_bundles.items()}
     band_labels = blend_models['magdep'].bands
     system_count = len(blend_candidates)
     decals_flux = np.full((system_count, len(band_labels)), np.nan)

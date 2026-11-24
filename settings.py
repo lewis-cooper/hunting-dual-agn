@@ -8,6 +8,8 @@ OUTPUT_ROOT = Path(os.environ.get('PAPER1_OUTPUT_ROOT', ROOT / 'products')).expa
 FIGURE_ROOT = Path(os.environ.get('PAPER1_FIGURE_ROOT', ROOT / 'figures')).expanduser()
 WORK_ROOT = Path(os.environ.get(
     'PAPER1_WORK_ROOT', OUTPUT_ROOT.parent / f'{OUTPUT_ROOT.name}_work')).expanduser()
+IMAGING_SEARCH_ROOT = WORK_ROOT / 'imaging_search'
+IMAGING_INPUT_ROOT = IMAGING_SEARCH_ROOT / 'inputs'
 FINAL_CANDIDATES_PATH = OUTPUT_ROOT / 'final_candidates.csv'
 PRE_LITERATURE_CANDIDATES_PATH = WORK_ROOT / 'joint_candidates_before_literature.csv'
 LITERATURE_ROOT = ROOT / 'data/literature'

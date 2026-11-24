@@ -10,10 +10,10 @@ from photometry import read_fits
 from score_selection import build_imaging_dcr_flags
 
 IMAGING_ROOT.mkdir(parents=True, exist_ok=True)
-channel_systems = read_fits(INPUT_ROOT / 'imaging_channel.fits')
+channel_systems = read_fits(IMAGING_INPUT_ROOT / 'imaging_channel.fits')
 imaging_candidates_start = channel_systems.loc[channel_systems.type_pair.eq('PSF-PSF')].copy()
-component_rows = read_fits(INPUT_ROOT / 'imaging_components.fits')
-labelled_systems = read_fits(INPUT_ROOT / 'imaging_labelled.fits')
+component_rows = read_fits(IMAGING_INPUT_ROOT / 'imaging_components.fits')
+labelled_systems = read_fits(IMAGING_INPUT_ROOT / 'imaging_labelled.fits')
 # Source cell c41e267e
 component_count_by_system = component_rows.groupby('qso_parent_index').size()
 validated_component_ids = set(component_count_by_system.loc[component_count_by_system.eq(2)].index)
@@ -144,4 +144,4 @@ upstream_cut_flow.to_csv(IMAGING_ROOT / 'upstream_cut_flow.csv', index=False)
 (IMAGING_ROOT / 'upstream_counts.json').write_text(json.dumps({
     'initial_psf_pairs': len(imaging_candidates_start), 'validated_pairs': len(labelled_systems),
     'primary_gaia': int(primary_has_gaia.sum()), 'precolour_systems': len(candidate_systems)}, indent=2) + '\n')
-print('Input:', INPUT_ROOT, '| Output:', IMAGING_ROOT, '| pre-colour:', len(candidate_systems))
+print('Input:', IMAGING_INPUT_ROOT, '| Output:', IMAGING_ROOT, '| pre-colour:', len(candidate_systems))

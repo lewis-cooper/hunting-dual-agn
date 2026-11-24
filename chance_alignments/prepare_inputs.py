@@ -14,7 +14,7 @@ sys.path.insert(0, str(ENGINE))
 from control_catalogues import ROUTES, latitude_bin, read_csv, read_fits
 
 
-def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir):
+def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir, imaging_input_root=None):
     """Use input pairs before colour/PM filtering, never the final sample as N_input."""
     one = read_csv(products/'one_arcsecond_scores.csv')
     components = read_fits(input_root/'one_arcsecond_components.fits',
@@ -55,8 +55,9 @@ def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir):
         frames.append(pairs)
     imaging = read_csv(work_root/'imaging/labelled_systems_audit.csv')
     evidence = read_csv(products/'imaging_scores.csv')
-    components = read_fits(input_root/'imaging_components.fits')
-    tractor = read_fits(input_root/'imaging_tractor.fits')
+    imaging_input_root = imaging_input_root or input_root
+    components = read_fits(imaging_input_root/'imaging_components.fits')
+    tractor = read_fits(imaging_input_root/'imaging_tractor.fits')
     primary = components.merge(tractor.drop_duplicates(['release','brickid','objid']),
         left_on=['tractor_release','tractor_brickid','tractor_objid'],
         right_on=['release','brickid','objid'], validate='many_to_one', suffixes=('','_source'))
@@ -81,11 +82,12 @@ def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir):
             'pair_separation_arcsec': group.component_sep_arcsec,
             'primary_flux_independent': True,
         })
-        quaia = read_fits(quaia_path or input_root/'quaia_imaging_reference.fits',
+        quaia = read_fits(quaia_path or imaging_input_root/'quaia_imaging_reference.fits',
                          ['source_id','redshift_quaia','redshift_quaia_err']).set_index('source_id')
-        errors = group.source_id.astype('int64').map(quaia.redshift_quaia_err)
+        quaia.index = quaia.index.astype('string')
+        errors = group.source_id.astype('string').map(quaia.redshift_quaia_err)
         uses_quaia = group.adopted_redshift_catalogue.str.contains('quaia', case=False)
-        reference_z=group.source_id.astype('int64').map(quaia.redshift_quaia)
+        reference_z=group.source_id.astype('string').map(quaia.redshift_quaia)
         inconsistent=uses_quaia & np.isfinite(reference_z) & ~np.isclose(group.adopted_redshift,reference_z,rtol=0,atol=1e-12)
         if inconsistent.any():raise ValueError('Quaia reference redshifts differ from the adopted primary redshifts')
         pairs['redshift_error'] = errors.where(uses_quaia, 0.)
@@ -137,8 +139,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['products', 'input-root', 'work-root', 'quaia', 'output']:
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--imaging-input-root',type=Path,
+                        help='Generated imaging-search inputs; defaults to input-root for standalone compatibility')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    pairs = prepare_control_inputs(args.products, args.input_root, args.work_root, args.quaia, args.output)
+    pairs = prepare_control_inputs(args.products, args.input_root, args.work_root, args.quaia, args.output,
+                                  imaging_input_root=args.imaging_input_root)
     print('Control matching inputs:', pairs.groupby('route').size().to_dict())
     print('Input products:', args.products, '| Prepared controls:', args.output)

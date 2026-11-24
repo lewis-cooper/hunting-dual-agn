@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import sys
+from tempfile import NamedTemporaryFile
 
 import numpy as np
 import pandas as pd
@@ -107,8 +108,17 @@ def configure_production(args):
     if (package_source/'qso_pcolor').is_dir():
         sys.path.insert(0,str(package_source))
     sys.path.insert(0,str(args.repo.resolve()))
-    from photometry import configure_dustmaps
-    configure_dustmaps()
+    runtime = args.output.resolve()/'scorer_runtime'
+    runtime.mkdir(parents=True, exist_ok=True)
+    # Workers must not truncate the same configuration file while another reads it.
+    with NamedTemporaryFile(mode='w', dir=runtime, prefix='dustmaps_', suffix='.json',
+                            delete=False) as stream:
+        json.dump({'data_dir': str(args.dustmaps.resolve())}, stream)
+        configuration_file = stream.name
+    os.environ['DUSTMAPS_CONFIG_FNAME'] = configuration_file
+    from dustmaps.config import config
+    config.fname = configuration_file
+    config.load()
 
 
 def score_blends(trials,args,models):

@@ -8,12 +8,13 @@ import shutil
 import subprocess
 import sys
 
-from settings import DUSTMAP_ROOT, INPUT_ROOT, MODEL_ROOT, OUTPUT_ROOT, ROOT, WORK_ROOT
+from settings import DUSTMAP_ROOT, INPUT_ROOT, IMAGING_INPUT_ROOT, MODEL_ROOT, OUTPUT_ROOT, ROOT, WORK_ROOT
 
 
 def resolve_config(path):
     supplied = json.loads(path.read_text())
-    resolved = dict(input_directory=INPUT_ROOT.resolve(), products_directory=OUTPUT_ROOT.resolve(),
+    resolved = dict(input_directory=INPUT_ROOT.resolve(), imaging_input_directory=IMAGING_INPUT_ROOT.resolve(),
+        products_directory=OUTPUT_ROOT.resolve(),
         vetting_work_directory=WORK_ROOT.resolve(), model_directory=MODEL_ROOT.resolve(),
         dustmaps_directory=DUSTMAP_ROOT.resolve(), workspace_directory=ROOT/'chance_alignment_work',
         workers=4, bootstrap=1000)
@@ -28,7 +29,7 @@ def resolve_config(path):
     if resolved['workers'] < 1 or resolved['bootstrap'] < 100:
         raise ValueError('Require workers >= 1 and bootstrap >= 100.')
     workspace = resolved['workspace_directory']
-    protected = [ROOT, resolved['input_directory'], resolved['products_directory'],
+    protected = [ROOT, resolved['input_directory'], resolved['imaging_input_directory'], resolved['products_directory'],
                  resolved['vetting_work_directory'], resolved['model_directory'],
                  resolved['dustmaps_directory']]
     if workspace == ROOT or any(workspace == parent or workspace.is_relative_to(parent)
@@ -42,9 +43,10 @@ def resolve_config(path):
 def source_paths(config):
     products = config['products_directory']
     inputs = config['input_directory']
+    imaging_inputs = config['imaging_input_directory']
     return [products/'one_arcsecond_scores.csv', products/'imaging_scores.csv',
         products/'threshold_calibration.json', inputs/'one_arcsecond_components.fits',
-        inputs/'imaging_components.fits', inputs/'imaging_tractor.fits',
+        imaging_inputs/'imaging_components.fits', imaging_inputs/'imaging_tractor.fits',
         config['vetting_work_directory']/'imaging/labelled_systems_audit.csv',
         config['master_catalogue'], config['quaia_catalogue']]
 
@@ -75,6 +77,7 @@ def prepare_runtime(config):
         command = [sys.executable, '-B', '-m', 'chance_alignments.prepare_inputs',
             '--products', str(config['products_directory']), '--input-root', str(config['input_directory']),
             '--work-root', str(config['vetting_work_directory']), '--quaia', str(config['quaia_catalogue']),
+            '--imaging-input-root', str(config['imaging_input_directory']),
             '--output', str(prepared)]
         subprocess.run(command, cwd=ROOT, check=True)
         modules = ['one_arcsecond.py', 'photometry.py', 'redshift_uncertainty.py', 'score_selection.py']
