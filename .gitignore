@@ -11,10 +11,15 @@ __pycache__/
 coverage.xml
 htmlcov/
 .DS_Store
-products/
+products/*
+!products/final_candidates.csv
+!products/one_arcsecond_scores.csv
+!products/imaging_scores.csv
+!products/one_arcsecond_cutflow.csv
+!products/imaging_cutflow.csv
+!products/threshold_calibration.json
 products_*/
 *_work/
-figures/
 figures_*/
 data/inputs/
 data/input_sha256.json

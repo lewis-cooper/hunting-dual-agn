@@ -46,3 +46,21 @@ documented in [data/literature/README.md](data/literature/README.md).
 Visual inspection remains outside the automatic workflow. Candidate counts and
 the calibrated threshold are measured from supplied data and are not fixed to
 the historical reference values.
+
+## Published output snapshot
+
+The tracked `products/` and `figures/` contain the completed 24 November 2026
+reference results: 411 unique candidates, score audits for 712 Gaia-neighbour
+inputs and 1,600 imaging systems, two cutflows, the threshold calibration, and
+18 PDF/PNG figure files. The calibration gives ln R >= -6.81 from 109 systems.
+
+This snapshot applied saved visual-inspection exclusions and removed confirmed
+lenses as well as other contaminants. It therefore predates the current policy
+above, which retains confirmed lenses and leaves visual inspection outside the
+automatic workflow. These files are reference results, not a completed rerun
+of the current workflow. The original calibration JSON is preserved without
+retrospectively adding an imported-scorer verification record.
+
+Regenerated products and figures replace these local files and can be committed
+together once validated. Analysis scripts do not automatically commit or upload
+data. Native inputs, cutouts, working caches and credentials remain excluded.

@@ -156,6 +156,20 @@ and the final catalogue. Other intermediates stay under `PAPER1_WORK_ROOT` and
 figures under `PAPER1_FIGURE_ROOT`. Use separate output folders for separate
 pipeline runs. Identifiers should be read as strings.
 
+The six products above and the contents of `figures/` are tracked by Git by
+default. Working files and supplied inputs remain excluded. Analysis commands
+write local outputs; publishing updated results uses the normal Git workflow:
+
+```bash
+git add products/ figures/
+git commit -m "Update analysis results and figures"
+git push
+```
+
+Commit products and figures together after the run has completed and its outputs
+have been checked. The historical snapshot currently published is described in
+[PROVENANCE.md](PROVENANCE.md).
+
 ## Optional method controls
 
 See [chance_alignments/README.md](chance_alignments/README.md) for the separately requested control experiment.

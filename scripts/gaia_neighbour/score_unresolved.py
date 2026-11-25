@@ -15,6 +15,8 @@ from qso_pcolor.blend import BlendModel
 from dual_agn.photometry import configure_dustmaps, saved_true
 from dual_agn.redshift_uncertainty import blend_score_with_redshift_error
 from dual_agn.blend_priors import cache_population_priors
+from dual_agn.blend_outputs import (build_blend_metadata, checkpoint_blend_scores,
+                                    scoring_fingerprint)
 
 
 def load_worker_dustmaps():
@@ -41,8 +43,9 @@ def score_batch(blend_model, model_name, photometry, coordinates, group_ids):
 
 
 def score_worker_batch(batch):
-    model_path, *arguments = batch
-    return score_batch(cached_blend_model(model_path), *arguments)
+    checkpoint, model_path, *arguments = batch
+    return checkpoint_blend_scores(checkpoint, arguments[0], arguments[-1],
+        lambda: score_batch(cached_blend_model(model_path), *arguments))
 
 
 def main():
@@ -214,19 +217,32 @@ def main():
     blend_candidates['redshift_error_used'] = redshift_errors(blend_candidates, 'primary_qso_zerr', 'primary_qso_catalog', 'primary_qso_redshift_kind')
     coordinates = blend_candidates[['primary_component_ra', 'primary_component_dec',
                                     'primary_qso_z', 'redshift_error_used']].to_numpy(float)
+    # Validate output requirements before spending time on the likelihood integrals.
+    blend_ranked = build_blend_metadata(blend_candidates)
+    checkpoint_inputs = [ONE_ROOT / 'scoring_inputs.csv', Path(__file__)]
+    checkpoint_inputs += [specification['path'] for specification in survey_products.values()]
+    checkpoint_inputs += list((ROOT / 'dual_agn').glob('*.py'))
+    checkpoint_inputs += [path for bundle in MODEL_BUNDLES.values()
+                          for path in bundle.rglob('*') if path.is_file()]
+    checkpoint_inputs += list((DUSTMAP_ROOT / 'sfd').glob('SFD_dust_4096_*.fits'))
+    checkpoint_root = ONE_ROOT / 'blend_checkpoints' / scoring_fingerprint(checkpoint_inputs, MODEL_REVISION)
     blend_score_rows = []
     if worker_count == 1:
         for model_name, blend_model in blend_models.items():
             print(f'Scoring {model_name}, multisurvey: {len(blend_candidates)} blends', flush=True)
-            blend_score_rows.extend(score_batch(blend_model, model_name, multisurvey_photometry,
-                                                coordinates, blend_candidates.qso_group_id.tolist()))
+            blend_score_rows.extend(checkpoint_blend_scores(
+                checkpoint_root / f'{model_name}_all.json', model_name,
+                blend_candidates.qso_group_id.tolist(),
+                lambda: score_batch(blend_model, model_name, multisurvey_photometry,
+                                   coordinates, blend_candidates.qso_group_id.tolist())))
     else:
         indices = np.arange(len(blend_candidates))
         batch_count = min(len(indices), worker_count * 3)
         batches = []
         for model_name, model_path in MODEL_BUNDLES.items():
-            for batch in np.array_split(indices, batch_count):
-                batches.append((model_path, model_name, multisurvey_photometry.subset(batch),
+            for batch_index, batch in enumerate(np.array_split(indices, batch_count)):
+                checkpoint = checkpoint_root / f'{model_name}_{batch_count}_{batch_index}.json'
+                batches.append((checkpoint, model_path, model_name, multisurvey_photometry.subset(batch),
                                 coordinates[batch], blend_candidates.qso_group_id.iloc[batch].tolist()))
         print(f'Scoring {len(batches)} independent blend batches with {worker_count} workers.', flush=True)
         with ProcessPoolExecutor(max_workers=worker_count, mp_context=get_context('spawn'),
@@ -236,28 +252,7 @@ def main():
                 if batch_index % batch_count == 0:
                     print(f'Completed {batch_index}/{len(batches)} blend batches.', flush=True)
     blend_scores = pd.DataFrame(blend_score_rows)
-    blend_ranked = blend_candidates[[
-        'qso_group_id',
-        'primary_qso_catalog',
-        'primary_qso_z',
-        'redshift_scope',
-        'targetid',
-        'desi_release',
-        'desi_brickid',
-        'desi_objid',
-        'scoring_route',
-        'decals_system_assignment',
-        'both_decals_r_assignments',
-        'blend_r_snr',
-        'fallback_r_band_input',
-        'fallback_r_snr',
-        'galactic_abs_b_deg',
-        'n_decals_bands',
-        'n_extra_bands',
-        'extra_surveys_used',
-        'one_local_source_near_both',
-        'selected_decals_component_photometry_quality'
-    ]].copy()
+    blend_scores.to_csv(ONE_ROOT / 'blend_scores_all_nonresolved_by_model_and_band_set.csv', index=False)
     for model_name in blend_models:
         scores = blend_scores.loc[blend_scores.model.eq(model_name)].set_index('qso_group_id')
         for field in (
@@ -281,7 +276,6 @@ def main():
     ) if isinstance(notes, (tuple, list)) else '')
     blend_ranked['rank_blend'] = blend_ranked.groupby('redshift_scope').log_bf_qq_qs_magdep.rank(ascending=False, method='min')
     blend_ranked = blend_ranked.sort_values(['redshift_scope', 'rank_blend', 'qso_group_id'], na_position='last')
-    blend_scores.to_csv(ONE_ROOT / 'blend_scores_all_nonresolved_by_model_and_band_set.csv', index=False)
     blend_ranked.to_csv(ONE_ROOT / 'ranked_unresolved.csv', index=False)
     blend_candidates.to_csv(ONE_ROOT / 'unresolved_photometry_audit.csv', index=False)
     print(

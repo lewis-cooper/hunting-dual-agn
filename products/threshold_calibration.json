@@ -1,0 +1,22 @@
+{
+  "recommended_log_r_threshold": -6.805985092335661,
+  "adopted_log_r_threshold": -6.81,
+  "previous_adopted_log_r_threshold": -6.7,
+  "fit_systems": 109,
+  "pm_significance_upper_limit": 70.0,
+  "contour_probability": 0.68,
+  "beta": 1.0,
+  "maximum_f_beta": 0.7512282974043532,
+  "adopted_low_pm_proxy_retention": 0.8714106375413297,
+  "adopted_low_pm_proxy_share": 0.6601783700056522,
+  "adopted_fit_systems_retained": 77,
+  "search_interval": [
+    -7.834124332026706,
+    -2.5751000880827384
+  ],
+  "grid_points": 2001,
+  "model": "either",
+  "calibration_statistic": "maximum finite eligible log R per unit z across both models",
+  "sample_unit": "anchor-entry",
+  "gaussian_population_labels_are_proxies": true
+}

@@ -1,0 +1,20 @@
+Selection stage,One-Gaia,Two-Gaia,Total
+Initial two-component PSF systems,,,16947
+Two validated components; fixed primary assignment,,,14369
+Fixed primary has Gaia,,,13803
+Gaia-tier definition,12559.0,1244.0,13803
+Primary PM significance < 3,9045.0,782.0,9827
+|Delta(g-r)| <= 1,2098.0,491.0,2589
+One-Gaia pair-DCR angle > 20 degrees,1139.0,491.0,1630
+Physical-system deduplication,1139.0,461.0,1600
+Both components: reference-band S/N >= 10,439.0,419.0,858
+Both components: |b| >= 25 degrees,390.0,351.0,741
+Both components: PSF morphology,390.0,351.0,741
+Remaining eligibility requirements met by both components in either model,298.0,309.0,607
+Both component scores finite in either model,298.0,309.0,607
+Both component ln R >= -6.81 in either model,238.0,168.0,406
+Two-Gaia secondary PM significance < 3 (missing retained),238.0,102.0,340
+Morphology measured (coverage),238.0,102.0,340
+Measured R_perp >= 1.05,235.0,102.0,337
+After saved visual exclusions,233.0,101.0,334
+Confirmed literature contaminant removal,233.0,77.0,310

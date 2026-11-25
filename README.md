@@ -10,8 +10,10 @@ morphology, and combines the candidates with a literature audit. Confirmed
 lenses are retained and flagged; confirmed non-lens contaminants are removed.
 
 Users supply the quasar catalogue, survey extracts, coverage records and FITS
-images. Observations, model assets, credentials and generated outputs are not
-distributed here. Visual inspection is performed separately. The optional
+images. Observations, model assets and credentials are not distributed here.
+Generated products and figures are tracked. The published reference snapshot
+contains 411 candidates and predates the current lens-retention and external
+visual-inspection policy; see [provenance](PROVENANCE.md). The optional
 chance-alignment experiment has its own control-data acquisition.
 
 Start with `run_analysis.py --pipeline both`; either `gaia_neighbour` or `imaging`

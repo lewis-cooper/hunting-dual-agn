@@ -1,0 +1,21 @@
+Route,Selection stage,Magnitude dependent,Magnitude independent,Either model
+Resolved,Assigned to route,376,376,376
+Resolved,Companion reference-band S/N >= 10,376,376,376
+Resolved,|b| >= 25 degrees,309,309,309
+Resolved,Companion PSF morphology,288,288,288
+Resolved,Remaining model eligibility/support requirements,172,190,195
+Resolved,Finite ln R,172,190,195
+Resolved,ln R >= -6.81,123,135,144
+Resolved,Secondary Gaia PM significance < 3 (missing retained),94,95,101
+Resolved,Visual inspection,93,94,100
+Unresolved,Assigned to route,321,321,321
+Unresolved,|b| >= 25 degrees,149,149,149
+Unresolved,Usable reference-band photometry,145,145,145
+Unresolved,Redshift within model support,142,142,142
+Unresolved,Reference-band S/N >= 20,141,141,141
+Unresolved,Finite QQ-QS log Bayes factor,139,139,139
+Unresolved,QQ favoured,45,47,51
+Unresolved,Secondary Gaia PM significance < 3 (missing retained),39,41,44
+Unresolved,Visual inspection,39,41,44
+Resolved,Confirmed literature contaminant removal,81,82,88
+Unresolved,Confirmed literature contaminant removal,36,38,41
