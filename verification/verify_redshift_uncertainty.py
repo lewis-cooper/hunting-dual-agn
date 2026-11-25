@@ -11,7 +11,7 @@ from scipy.special import logsumexp
 from scipy.stats import norm
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from redshift_uncertainty import (blend_score_with_redshift_error,
+from dual_agn.redshift_uncertainty import (blend_score_with_redshift_error,
                                   score_components_with_redshift_errors)
 
 

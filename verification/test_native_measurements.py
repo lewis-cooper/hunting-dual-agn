@@ -13,18 +13,18 @@ import pandas as pd
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from imaging_morphology import measure_image
-from measurement_inputs import read_config, read_local_sources, require_coverage
-from one_arcsecond_measurements import (build_components, build_system_measurements,
+from dual_agn.imaging_morphology import measure_image
+from dual_agn.measurement_inputs import read_config, read_local_sources, require_coverage
+from dual_agn.one_arcsecond_measurements import (build_components, build_system_measurements,
                                        build_survey_photometry)
 from scripts.run_analysis import commands
-from scripts.build_one_arcsecond_measurements import build_measurements
-from scripts.measure_imaging_morphology import measure_candidates
-from settings import survey_products
-from imaging_search.catalogues import write_fits
-from scripts.prepare_quasar_catalogue import adapt_catalogue
-from one_arcsecond_search import resolve_config as discovery_config, run_search
-from redshift_inputs import redshift_errors
+from scripts.gaia_neighbour.build_measurements import build_measurements
+from scripts.imaging.measure_morphology import measure_candidates
+from dual_agn.settings import survey_products
+from dual_agn.imaging_search.catalogues import write_fits
+from scripts.shared.prepare_quasar_catalogue import adapt_catalogue
+from dual_agn.one_arcsecond_search import resolve_config as discovery_config, run_search
+from dual_agn.redshift_inputs import redshift_errors
 
 
 def native_fixture(shared=False):
@@ -48,6 +48,24 @@ def native_fixture(shared=False):
 
 
 class NativeMeasurementTests(unittest.TestCase):
+    def test_calibration_only_build_needs_no_supplementary_catalogues(self):
+        parent,gaia,tractor=native_fixture()
+        parent=parent.assign(primary_qso_catalog='test', primary_qso_objid='test',
+            primary_qso_z=1., primary_qso_redshift_kind='spectroscopic')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            gaia.to_csv(root/'gaia.csv',index=False)
+            tractor.to_csv(root/'tractor.csv',index=False)
+            pd.DataFrame(dict(source_id=parent.matched_gaia_source_id,ra_deg=[30.],
+                dec_deg=[0.],query_radius_arcsec=[2.])).to_csv(root/'coverage.csv',index=False)
+            config=dict(_directory=directory,gaia=dict(path='gaia.csv',coverage='coverage.csv'),
+                tractor=dict(path='tractor.csv',coverage='coverage.csv'))
+            build_measurements(config,parent,root/'measurements',calibration_only=True)
+            self.assertTrue(pd.read_csv(root/'measurements/component_quality_audit.csv').eligible_both_components.all())
+            for survey in survey_products:
+                photometry=pd.read_csv(root/'measurements'/f'{survey}_measurements.csv')
+                self.assertFalse(photometry[f'{survey}_source_matched'].any())
+
     def test_distinct_assignments_and_covariant_pm(self):
         parent, gaia, tractor = native_fixture()
         components = build_components(parent, gaia, tractor)
@@ -103,10 +121,10 @@ class NativeMeasurementTests(unittest.TestCase):
     def test_runner_generates_measurements_before_validation_and_scoring(self):
         sequence = commands('vetting', measurement_config=Path('native.json'), data_source='local')
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
-        self.assertLess(modules.index('scripts.build_one_arcsecond_measurements'), modules.index('scripts.prepare_one_arcsecond_inputs'))
-        self.assertLess(modules.index('scripts.measure_imaging_morphology'), modules.index('scripts.select_imaging_candidates'))
+        self.assertLess(modules.index('scripts.gaia_neighbour.build_measurements'), modules.index('scripts.gaia_neighbour.prepare_inputs'))
+        self.assertLess(modules.index('scripts.imaging.measure_morphology'), modules.index('scripts.imaging.select_candidates'))
         for command in sequence:
-            if any(name in command for name in ('scripts.build_one_arcsecond_measurements', 'scripts.measure_imaging_morphology')):
+            if any(name in command for name in ('scripts.gaia_neighbour.build_measurements', 'scripts.imaging.measure_morphology')):
                 self.assertEqual(Path(command[command.index('--config')+1]).name, 'native.json')
 
     def test_native_files_build_all_required_intermediates(self):
@@ -131,8 +149,6 @@ class NativeMeasurementTests(unittest.TestCase):
                 source = {'source_id':['native'], 'ra':[30.], 'dec':[0.]}
                 for magnitude, error in specification['bands'].values():
                     source[magnitude], source[error] = [19.], [.1]
-                if survey == 'sdss':
-                    source.update(sdss_clean=[True], sdss_mode=[1])
                 pd.DataFrame(source).to_csv(root/f'{survey}.csv', index=False)
                 config['surveys'][survey] = {'path':f'{survey}.csv','full_catalogue':True}
             generated = root/'work/one_arcsecond_inputs'
@@ -147,7 +163,7 @@ class NativeMeasurementTests(unittest.TestCase):
             parent.to_csv(parent_path,index=False)
             environment = dict(os.environ, PAPER1_WORK_ROOT=str(root/'work'),
                                PAPER1_INPUT_ROOT=str(root/'empty_external_inputs'))
-            completed = subprocess.run([sys.executable,'-B','-m','scripts.prepare_one_arcsecond_inputs'],
+            completed = subprocess.run([sys.executable,'-B','-m','scripts.gaia_neighbour.prepare_inputs'],
                 cwd=Path(__file__).resolve().parents[1], env=environment, capture_output=True,text=True)
             self.assertEqual(completed.returncode,0,completed.stdout+'\n'+completed.stderr)
             prepared = pd.read_csv(root/'work/one_arcsecond/scoring_inputs.csv')

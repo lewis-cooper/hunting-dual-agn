@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from literature import annotate_candidates, match_references, read_references
+from dual_agn.literature import annotate_candidates, match_references, read_references
 from scripts.run_analysis import VETTING_STAGES
-from settings import LITERATURE_ROOT
+from dual_agn.settings import LITERATURE_ROOT
 
 
 class LiteratureTests(unittest.TestCase):
@@ -118,10 +118,10 @@ class LiteratureTests(unittest.TestCase):
         self.assertTrue(j0823.classification.eq('likely_lens').all())
 
     def test_literature_stage_precedes_final_candidate_plots(self):
-        self.assertLess(VETTING_STAGES.index('combine_candidate_catalogues'),
-                        VETTING_STAGES.index('crossmatch_literature'))
-        self.assertLess(VETTING_STAGES.index('crossmatch_literature'),
-                        VETTING_STAGES.index('plot_candidate_separation_redshift'))
+        self.assertLess(VETTING_STAGES.index('shared.combine_candidates'),
+                        VETTING_STAGES.index('shared.crossmatch_literature'))
+        self.assertLess(VETTING_STAGES.index('shared.crossmatch_literature'),
+                        VETTING_STAGES.index('shared.plot_separation_redshift'))
 
     def test_dual_or_lensed_wording_is_not_a_lens_confirmation(self):
         references = read_references(LITERATURE_ROOT/'known_binaries.csv',

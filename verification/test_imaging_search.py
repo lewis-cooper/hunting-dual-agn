@@ -14,13 +14,13 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from imaging_search.catalogues import (find_tractor_pairs, read_master, require_tractor_coverage,
+from dual_agn.imaging_search.catalogues import (find_tractor_pairs, read_master, require_tractor_coverage,
                                       resolve_config, resolve_tractor)
-from imaging_search.dcr import axis_delta, calculate_dcr, footprint_contains
-from imaging_search.pairs import (build_candidate_summary, build_component_table,
+from dual_agn.imaging_search.dcr import axis_delta, calculate_dcr, footprint_contains
+from dual_agn.imaging_search.pairs import (build_candidate_summary, build_component_table,
                                  local_color_stats, match_gaia_components, pm_sig,
                                  require_gaia_coverage)
-from imaging_search.pipeline import GENERATED_INPUTS, run_search
+from dual_agn.imaging_search.pipeline import GENERATED_INPUTS, run_search
 from scripts.run_analysis import commands
 
 
@@ -60,6 +60,26 @@ class ImagingSearchTests(unittest.TestCase):
         return pd.DataFrame([dict(source_id='9007199254740993',ra=10.0001,dec=0.,
             phot_g_mean_mag=18.,pmra=0.,pmdec=0.,pmra_error=1.,pmdec_error=1.,
             pmra_pmdec_corr=0.,parallax_over_error=0.,ruwe=1.)])
+
+    def fixture_config(self, root):
+        self.master().to_csv(root/'master.csv',index=False)
+        self.tractor().to_csv(root/'tractor.csv',index=False)
+        self.coverage().to_csv(root/'tractor_coverage.csv',index=False)
+        self.gaia().to_csv(root/'gaia.csv',index=False)
+        pd.DataFrame({'ra_deg':[10.,10.0002],'dec_deg':[0.,0.],
+            'query_radius_arcsec':[.7,.7]}).to_csv(root/'gaia_coverage.csv',index=False)
+        self.ccd().to_csv(root/'ccds.csv',index=False)
+        pd.DataFrame([dict(qso_parent_index=0,ra_deg=10.,dec_deg=0.,
+            query_radius_deg=.65)]).to_csv(root/'ccd_coverage.csv',index=False)
+        pd.DataFrame([dict(source_id='9007199254740993',redshift_quaia=1.,
+            redshift_quaia_err=.1)]).to_csv(root/'quaia.csv',index=False)
+        config=dict(master_catalogue='master.csv',tractor_catalogues=['tractor.csv'],
+            tractor_coverage='tractor_coverage.csv',gaia_catalogue='gaia.csv',
+            gaia_coverage='gaia_coverage.csv',ccd_catalogue='ccds.csv',
+            ccd_coverage='ccd_coverage.csv',quaia_catalogue='quaia.csv')
+        path=root/'config.json'
+        path.write_text(json.dumps(config))
+        return resolve_config(path)
 
     def test_two_sources_are_found_from_unassociated_catalogue_rows(self):
         with TemporaryDirectory() as directory:
@@ -146,35 +166,62 @@ class ImagingSearchTests(unittest.TestCase):
         target=Table(dict(qso_parent_index=[0],primary_ra=[10.],primary_dec=[0.],secondary_ra=[10.0002],secondary_dec=[0.]))
         ccds=pd.concat([self.ccd()]*2,ignore_index=True)
         coverage=pd.DataFrame([dict(qso_parent_index=0,ra_deg=10.,dec_deg=0.,query_radius_deg=.65)])
-        with patch('imaging_search.dcr.parallactic_pa',return_value=np.array([179.,1.])):
+        with patch('dual_agn.imaging_search.dcr.parallactic_pa',return_value=np.array([179.,1.])):
             result=calculate_dcr(target,ccds,coverage)
         self.assertLess(axis_delta(result.dcr_pa_deg.iloc[0],0.),1e-10)
 
     def test_end_to_end_search_is_offline_and_writes_vetting_inputs(self):
         with TemporaryDirectory() as directory:
             root=Path(directory)
-            self.master().to_csv(root/'master.csv',index=False)
-            self.tractor().to_csv(root/'tractor.csv',index=False)
-            self.coverage().to_csv(root/'tractor_coverage.csv',index=False)
-            self.gaia().to_csv(root/'gaia.csv',index=False)
-            pd.DataFrame({'ra_deg':[10.,10.0002],'dec_deg':[0.,0.],'query_radius_arcsec':[.7,.7]}).to_csv(root/'gaia_coverage.csv',index=False)
-            self.ccd().to_csv(root/'ccds.csv',index=False)
-            pd.DataFrame([dict(qso_parent_index=0,ra_deg=10.,dec_deg=0.,query_radius_deg=.65)]).to_csv(root/'ccd_coverage.csv',index=False)
-            pd.DataFrame([dict(source_id='9007199254740993',redshift_quaia=1.,redshift_quaia_err=.1)]).to_csv(root/'quaia.csv',index=False)
-            config=dict(master_catalogue='master.csv',tractor_catalogues=['tractor.csv'],
-                tractor_coverage='tractor_coverage.csv',gaia_catalogue='gaia.csv',
-                gaia_coverage='gaia_coverage.csv',ccd_catalogue='ccds.csv',
-                ccd_coverage='ccd_coverage.csv',quaia_catalogue='quaia.csv')
-            path=root/'config.json';path.write_text(json.dumps(config))
+            config=self.fixture_config(root)
             with patch.object(socket.socket,'connect',side_effect=AssertionError('Network forbidden')):
-                result=run_search(resolve_config(path),root/'work')
+                result=run_search(config,root/'work')
             self.assertFalse(result['network_access'])
             self.assertEqual(result['counts']['validated_psf_pairs'],1)
             self.assertTrue(all((root/'work/inputs'/name).is_file() for name in GENERATED_INPUTS))
 
+    def test_acquisition_discovery_is_reused_and_matches_a_fresh_search(self):
+        with TemporaryDirectory() as directory:
+            root=Path(directory)
+            config=self.fixture_config(root)
+            with patch('dual_agn.imaging_search.pipeline.find_tractor_pairs', wraps=find_tractor_pairs) as finder:
+                run_search(config,root/'work',stage='discover')
+                reused=run_search(config,root/'work',resume=True)
+                self.assertEqual(finder.call_count,1)
+            fresh=run_search(config,root/'fresh')
+            self.assertEqual(reused['counts'],fresh['counts'])
+            self.assertEqual(reused['output_sha256'],fresh['output_sha256'])
+
+    def test_changed_gaia_rebuilds_associations_without_repeating_tractor_search(self):
+        with TemporaryDirectory() as directory:
+            root=Path(directory)
+            config=self.fixture_config(root)
+            with patch('dual_agn.imaging_search.pipeline.find_tractor_pairs', wraps=find_tractor_pairs) as finder:
+                initial=run_search(config,root/'work')
+                self.gaia().assign(pmra=2.).to_csv(root/'gaia.csv',index=False)
+                updated=run_search(config,root/'work',resume=True)
+                self.assertEqual(finder.call_count,1)
+            self.assertNotEqual(initial['fingerprint'],updated['fingerprint'])
+            self.assertNotEqual(initial['output_sha256']['inputs/imaging_labelled.fits'],
+                                updated['output_sha256']['inputs/imaging_labelled.fits'])
+
+    def test_changed_tractor_or_damaged_discovery_outputs_repeat_discovery(self):
+        with TemporaryDirectory() as directory:
+            root=Path(directory)
+            config=self.fixture_config(root)
+            with patch('dual_agn.imaging_search.pipeline.find_tractor_pairs', wraps=find_tractor_pairs) as finder:
+                run_search(config,root/'work')
+                self.tractor().assign(flux_r=[120.,50.]).to_csv(root/'tractor.csv',index=False)
+                run_search(config,root/'work',resume=True)
+                self.assertEqual(finder.call_count,2)
+                (root/'work/inputs/imaging_channel.fits').write_bytes(b'incomplete output')
+                run_search(config,root/'work',resume=True)
+                self.assertEqual(finder.call_count,3)
+            self.assertEqual(len(Table.read(root/'work/inputs/imaging_channel.fits')),1)
+
     def test_full_runner_searches_before_prepared_input_validation(self):
         sequence=commands('vetting',imaging_search_config=Path('search.json'),data_source='local')
-        search=next(i for i,command in enumerate(sequence) if 'scripts.search_imaging_candidates' in command)
+        search=next(i for i,command in enumerate(sequence) if 'scripts.imaging.search_candidates' in command)
         prepared=next(i for i,command in enumerate(sequence)
                       if 'verification/verify_input_contracts.py' in command and '--external-only' not in command)
         self.assertLess(search,prepared)

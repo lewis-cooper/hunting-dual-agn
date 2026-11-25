@@ -14,15 +14,16 @@ import pandas as pd
 from astropy import units as u
 from astropy.coordinates import search_around_sky
 
-from imaging_search.catalogues import read_frame, resolve_config as imaging_config
-from imaging_search.pipeline import run_search as search_imaging
-from measurement_inputs import read_config, sky
-from one_arcsecond_search import resolve_config as one_config, run_search as search_one
-from scripts.build_one_arcsecond_measurements import build_measurements
-from scripts.query_wsdb_inputs import absolute_paths, prepare_inputs, validate_sources
-from scripts.prepare_quasar_catalogue import adapt_catalogue
+from dual_agn.imaging_search.catalogues import read_frame, resolve_config as imaging_config
+from dual_agn.imaging_search.pipeline import run_search as search_imaging
+from dual_agn.measurement_inputs import read_config, sky
+from dual_agn.one_arcsecond_search import resolve_config as one_config, run_search as search_one
+from scripts.gaia_neighbour.build_measurements import build_measurements
+from scripts.shared.acquire_inputs import absolute_paths, prepare_inputs, validate_sources
+from scripts.shared.prepare_quasar_catalogue import adapt_catalogue
 from scripts.run_analysis import commands
-from wsdb_inputs import WsdbCatalogues, WsdbInputError, source_tables
+from dual_agn.wsdb_inputs import WsdbCatalogues, WsdbInputError, source_tables
+from dual_agn.settings import survey_products
 
 
 def source_spec(name, frame):
@@ -61,6 +62,11 @@ class FixtureCatalogues:
         self.requests.append((path.name, len(targets), radius_arcsec))
         return path, coverage_path
 
+    def export_ids(self, specification, identifiers, path, identity='targetid'):
+        frame = self.frames[specification['table'].split('.')[-1]]
+        frame.loc[frame[identity].isin(identifiers)].to_csv(path, index=False)
+        return path, None
+
 
 class WsdbWorkflowTests(unittest.TestCase):
     def test_wsdb_exports_feed_the_same_offline_discovery_and_measurements(self):
@@ -88,19 +94,17 @@ class WsdbWorkflowTests(unittest.TestCase):
             for band in 'grizy':
                 ps1[f'ps1_{band}kronmag'] = 19.
                 ps1[f'ps1_{band}kronmagerr'] = .1
-            configs = {
-                'quasars.json': dict(catalogue='quasars.csv', catalogue_label='test',
-                    redshift_kind='spectroscopic', columns=dict(object_id='id', ra='ra', dec='dec', redshift='z')),
-                'measurements.json': dict(gaia={}, tractor={},
-                    surveys={name: {'enabled': False} for name in ('sdss', 'ps1', 'skymapper', 'nsc', 'vhs', 'allwise')},
-                    morphology_images={'path_template': 'images/qso_{qso_parent_index:06d}.fits'}),
-                'imaging.json': {},
-            }
-            for name, value in configs.items():
-                (root/name).write_text(json.dumps(value))
             frames = dict(gaia=gaia, tractor=tractor, ccd=ccd, ps1=ps1)
-            config = dict(_directory=str(root), quasar_catalogue_config='quasars.json',
-                measurement_config='measurements.json', imaging_search_config='imaging.json',
+            for name, specification in survey_products.items():
+                frame = gaia[['source_id', 'ra', 'dec']].copy()
+                for magnitude, error in specification['bands'].values():
+                    frame[magnitude], frame[error] = 19., .1
+                frames[name] = frame
+            frames['desi'] = pd.DataFrame(columns=['targetid', 'release',
+                *[f'{quantity}_{band}' for quantity in ('flux', 'flux_ivar') for band in 'grz']])
+            config = dict(_directory=str(root), quasar_catalogue=dict(
+                catalogue='quasars.csv', catalogue_label='test', redshift_kind='spectroscopic',
+                columns=dict(object_id='id', ra='ra', dec='dec', redshift='z')),
                 sources={name: source_spec(name, frame) for name, frame in frames.items()})
             database = FixtureCatalogues(frames)
             with patch.object(socket.socket, 'connect', side_effect=AssertionError('Live query forbidden')):
@@ -143,12 +147,12 @@ class WsdbWorkflowTests(unittest.TestCase):
     def test_runner_exports_before_local_builders_and_preserves_offline_mode(self):
         sequence = commands('vetting', wsdb_config=Path('wsdb.json'))
         self.assertIn('--models-only', sequence[0])
-        self.assertIn('scripts.query_wsdb_inputs', sequence[1])
+        self.assertIn('scripts.shared.acquire_inputs', sequence[1])
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
-        self.assertLess(modules.index('scripts.search_one_arcsecond_candidates'), modules.index('scripts.score_one_arcsecond_resolved'))
-        self.assertFalse(any('scripts.prepare_quasar_catalogue' in command for command in sequence))
+        self.assertLess(modules.index('scripts.gaia_neighbour.search_candidates'), modules.index('scripts.gaia_neighbour.score_resolved'))
+        self.assertFalse(any('scripts.shared.prepare_quasar_catalogue' in command for command in sequence))
         offline = commands('vetting', data_source='local')
-        self.assertFalse(any('scripts.query_wsdb_inputs' in command for command in offline))
+        self.assertFalse(any('scripts.shared.acquire_inputs' in command for command in offline))
         with self.assertRaisesRegex(ValueError, 'do not combine'):
             commands('vetting', wsdb_config=Path('w.json'), measurement_config=Path('m.json'))
         self.assertIn('--resume', commands('vetting', wsdb_config=Path('w.json'), resume=True)[1])
@@ -156,7 +160,7 @@ class WsdbWorkflowTests(unittest.TestCase):
     def test_default_uses_wsdb_and_local_choice_is_explicit(self):
         sequence = commands('vetting')
         self.assertIn('--models-only', sequence[0])
-        self.assertIn('scripts.query_wsdb_inputs', sequence[1])
+        self.assertIn('scripts.shared.acquire_inputs', sequence[1])
         self.assertEqual(Path(sequence[1][-1]).name, 'wsdb_inputs.local.json')
         for stage in ('one-arcsecond-search', 'imaging-search'):
             sequence = commands(stage)
@@ -174,13 +178,11 @@ class WsdbWorkflowTests(unittest.TestCase):
             pd.DataFrame(dict(id=['pair'], ra=[10.], dec=[0.], z=[1.])).to_csv(root/'quasars.csv', index=False)
             quasar_config = dict(catalogue='quasars.csv', catalogue_label='test', redshift_kind='spectroscopic',
                 columns=dict(object_id='id', ra='ra', dec='dec', redshift='z'))
-            (root/'quasars.json').write_text(json.dumps(quasar_config))
             gaia = pd.DataFrame(dict(source_id=['9007199254740993','9007199254740994'],
                 ra=[10.,10.+.7/3600], dec=[0.,0.], phot_g_mean_mag=[18.,19.],
                 pmra=[0.,0.], pmdec=[0.,0.], pmra_error=[1.,1.], pmdec_error=[1.,1.],
                 pmra_pmdec_corr=[0.,0.], parallax_over_error=[0.,0.], ruwe=[1.,1.]))
-            config = dict(_directory=str(root), quasar_catalogue_config='quasars.json',
-                measurement_config='not_needed.json', imaging_search_config='not_needed.json',
+            config = dict(_directory=str(root), quasar_catalogue=quasar_config,
                 sources={'gaia':source_spec('gaia',gaia)})
             database = FixtureCatalogues({'gaia':gaia})
             result = prepare_inputs(config, root/'generated', client=database, stage='one-arcsecond-search')

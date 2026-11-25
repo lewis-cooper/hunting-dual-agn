@@ -50,7 +50,7 @@ def run(config, stage, resume=False, dry_run=False, resample=False):
     if not dry_run:
         root.mkdir(parents=True, exist_ok=True)
         version = json.loads((data/'reference/production_version.json').read_text())
-        for name in ['one_arcsecond.py', 'photometry.py', 'redshift_uncertainty.py', 'score_selection.py']:
+        for name in ['dual_agn/one_arcsecond.py', 'dual_agn/photometry.py', 'dual_agn/redshift_uncertainty.py', 'dual_agn/score_selection.py']:
             actual = hashlib.sha256((repo/name).read_bytes()).hexdigest()
             if actual != version[name]:
                 raise ValueError(f'Production scorer differs from the measured experiment: {name}')

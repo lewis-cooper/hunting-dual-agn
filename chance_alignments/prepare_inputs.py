@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from redshift_inputs import redshift_errors
+from dual_agn.redshift_inputs import redshift_errors
 
 ENGINE = Path(__file__).resolve().parent/'engine'
 sys.path.insert(0, str(ENGINE))

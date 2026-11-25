@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from one_arcsecond_search import (deduplicate_quasars, match_local_gaia, resolve_config,
+from dual_agn.one_arcsecond_search import (deduplicate_quasars, match_local_gaia, resolve_config,
     run_search, select_neighbour_matches, validate_measurement_identities)
 from scripts.run_analysis import commands
 
@@ -186,8 +186,8 @@ class OneArcsecondDiscoveryTests(unittest.TestCase):
     def test_full_workflow_discovers_both_samples_before_preparation(self):
         sequence = commands('vetting', one_arcsecond_search_config=Path('gaia_search.json'), data_source='local')
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
-        self.assertLess(modules.index('scripts.search_one_arcsecond_candidates'),
-                        modules.index('scripts.prepare_one_arcsecond_inputs'))
+        self.assertLess(modules.index('scripts.gaia_neighbour.search_candidates'),
+                        modules.index('scripts.gaia_neighbour.prepare_inputs'))
         self.assertEqual(sequence[3][-2:], ['--config', str(Path('gaia_search.json').resolve())])
         self.assertEqual(len(commands('one-arcsecond-search', data_source='local')), 1)
 

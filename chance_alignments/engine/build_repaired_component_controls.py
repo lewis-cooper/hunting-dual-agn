@@ -15,7 +15,7 @@ from astropy.coordinates import SkyCoord
 
 from control_catalogues import read_csv,pm_significance,magnitude
 from score_controls import HEMISPHERE,configure_production
-from score_parent_component_controls import cached_scores
+from score_controls import cached_scores
 
 
 def source_library(source_root,dustmaps):
@@ -72,7 +72,7 @@ def source_library(source_root,dustmaps):
 def real_primary_scores(inputs,args):
     configure_production(args)
     from qso_pcolor.unified import UnifiedPSFModel
-    from score_selection import read_either_model_threshold
+    from dual_agn.score_selection import read_either_model_threshold
     models={name:UnifiedPSFModel.load(args.models/f'20261005_{name}_qlf') for name in ['magdep','magindep']}
     threshold=read_either_model_threshold(
         getattr(args,'calibration',None) or args.repo/'products/threshold_calibration.json')

@@ -17,19 +17,17 @@ the populations or scorers used by these method-level controls.
 ## Complete sequence
 
 Install the dependencies and configure the input/model paths in the
-[main README](../README.md). Copy `chance_alignment.example.json` to
+[main README](../README.md). Copy `examples/chance_alignment.example.json` to
 `chance_alignment.local.json` and supply the full quasar master and Quaia paths.
 
 ```sh
-python -m scripts.run_analysis --chance-config chance_alignment.local.json --resume
+python -m scripts.run_analysis --stage all --pipeline both --chance-config chance_alignment.local.json --resume
 ```
 
-This runs the local imaging candidate search, vetting/literature stages and
+This runs candidate acquisition and discovery, vetting/literature stages and
 checks first, then the control stages. The control adapter reads the generated
 imaging component/Tractor tables from the search workspace. The control
 scorers and statistical calculations are unchanged.
-The existing `run_frozen_analysis.sh` remains a vetting-only entry point, now
-delegating to the same Python sequence so its stage order is maintained in one place.
 
 ## Control stages
 
@@ -45,7 +43,7 @@ Omit `--stage` to run all stages. `--dry-run` shows the connection without query
 or scoring. Paths are explicit through the config and the existing vetting
 environment variables. Optional config keys are `input_directory`,
 `products_directory`, `vetting_work_directory`, `model_directory` and
-`dustmaps_directory`; their defaults come from `settings.py`. The required
+`dustmaps_directory`; their defaults come from `dual_agn/settings.py`. The required
 master/Quaia schema is in the [input guide](../data/README.md).
 
 1. **Prepare:** derive pre-vetting input descriptors and empirical DCR/morphology
@@ -99,16 +97,14 @@ reference. It needs no production model assets or survey queries. A fresh rebuil
 does not need this archive: its input descriptors are generated from vetting and
 its field lists are sampled from the supplied full catalogues.
 
-Standalone utilities are available under this package: `run_controls.py`,
-`reproduce_results.py` and `verify_models.py`. They accept explicit configuration
-and control-data paths. `verify_models.py` uses the small
-real scoring examples in the optional control-data archive and the corresponding
-standalone config; it is not needed to run the full repo sequence.
+The public control entry point is `scripts/run_chance_alignments.py`.
+`run_controls.py` implements its execution sequence and `reproduce_results.py`
+implements offline replay.
 
 ## Preserved scientific rules and qualifications
 
-- The threshold is read from the repo's calibration product, currently
-  ln R >= -6.81. Either model may pass; imaging components must pass under the
+- The threshold is read from the current run's calibration product.
+  Either model may pass; imaging components must pass under the
   same model variant. Blends require finite QQ/QS scores in both and a positive
   score in either.
 - Secondary PM must be below 3 when finite; missing PM is retained and flagged.
@@ -126,5 +122,5 @@ standalone config; it is not needed to run the full repo sequence.
 - The 10-60 arcsec density tables are separate geometric diagnostics. They do not
   produce a selected-sample contamination estimate or distinguish lenses from duals.
 
-No personal credentials, WSDB code, input catalogues, control archives or generated
+No personal credentials, input catalogues, control archives or generated
 figures are included in Git.

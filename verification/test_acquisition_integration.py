@@ -13,29 +13,62 @@ import numpy as np
 import pandas as pd
 from astropy.io import fits
 
-from catalogue_downloads import export_public_sources, download_legacy_r_cutout, public_query, CCD_FIELDS, SDSS_FIELDS
-from imaging_search.catalogues import resolve_config as imaging_config
-from imaging_search.pipeline import run_search as search_imaging
-from measurement_inputs import read_config
-from one_arcsecond_measurements import build_desi_fallback
-from scripts.build_one_arcsecond_measurements import build_measurements
-from scripts.prepare_quasar_catalogue import read_quasars
-from scripts.query_wsdb_inputs import prepare_inputs
-from scripts.measure_imaging_morphology import measure_candidates
-from settings import survey_products
+from dual_agn.catalogue_downloads import export_public_sources, download_legacy_r_cutout, public_query, CCD_FIELDS
+from dual_agn.imaging_search.catalogues import resolve_config as imaging_config
+from dual_agn.imaging_search.pipeline import run_search as search_imaging
+from dual_agn.measurement_inputs import read_config
+from dual_agn.one_arcsecond_measurements import build_desi_fallback
+from scripts.gaia_neighbour.build_measurements import build_measurements
+from scripts.shared.prepare_quasar_catalogue import read_quasars
+from scripts.shared.acquire_inputs import prepare_inputs
+from scripts.imaging.measure_morphology import measure_candidates
+from dual_agn.settings import survey_products
 from verification import test_native_measurements as native_tests
 from verification.test_wsdb_inputs import FixtureCatalogues, FakeConnection, source_spec
-from wsdb_inputs import WsdbCatalogues
-
-
-class FixtureWithIds(FixtureCatalogues):
-    def export_ids(self, specification, identifiers, path, identity='targetid'):
-        frame = self.frames[specification['table'].split('.')[-1]]
-        frame.loc[frame[identity].isin(identifiers)].to_csv(path,index=False)
-        return path, None
+from dual_agn.wsdb_inputs import WsdbCatalogues
 
 
 class AcquisitionIntegrationTests(unittest.TestCase):
+    def test_single_pipeline_queries_only_its_required_fields_and_photometry(self):
+        for pipeline in ('gaia_neighbour', 'imaging'):
+            with self.subTest(pipeline=pipeline), TemporaryDirectory() as directory:
+                root=Path(directory)
+                _,gaia,tractor=native_tests.native_fixture()
+                isolated=gaia.iloc[:1].copy()
+                isolated['source_id']='100000000000000003'
+                isolated['ra']=40.
+                gaia=pd.concat([gaia,isolated],ignore_index=True)
+                gaia['parallax_over_error'],gaia['ruwe']=0.,1.
+                pd.DataFrame(dict(id=['pair','isolated'],ra=[30.,40.],dec=[0.,0.],
+                    z=[1.,1.2])).to_csv(root/'quasars.csv',index=False)
+                frames=dict(gaia=gaia,tractor=tractor)
+                for name,specification in survey_products.items():
+                    frame=gaia[['source_id','ra','dec']].copy()
+                    for magnitude,error in specification['bands'].values():
+                        frame[magnitude],frame[error]=19.,.1
+                    frames[name]=frame
+                frames['desi']=pd.DataFrame(columns=['targetid','release',
+                    *[f'{quantity}_{band}' for quantity in ('flux','flux_ivar') for band in 'grz']])
+                frames['ccd']=pd.DataFrame([dict(ra=30.,dec=0.,filter='g',ccd_cuts=0,camera='decam',
+                    width=2048,height=2048,crpix1=1024.,crpix2=1024.,crval1=30.,crval2=0.,
+                    cd1_1=-.262/3600,cd1_2=0.,cd2_1=0.,cd2_2=.262/3600,mjd_obs=60000.,exptime=100.,sig1=1.)])
+                config=dict(_directory=str(root),quasar_catalogue=dict(catalogue='quasars.csv',
+                    catalogue_label='test',redshift_kind='spectroscopic',
+                    columns=dict(object_id='id',ra='ra',dec='dec',redshift='z')),
+                    sources={name:source_spec(name,frame) for name,frame in frames.items()})
+                database=FixtureCatalogues(frames)
+                with patch.object(socket.socket,'connect',side_effect=AssertionError('Network forbidden')):
+                    prepare_inputs(config,root/'generated',client=database,pipeline=pipeline)
+                queries={name:count for name,count,radius in database.requests}
+                self.assertEqual(queries['gaia_discovery.csv'],2)
+                self.assertEqual(queries['tractor.csv'],1 if pipeline=='gaia_neighbour' else 2)
+                self.assertEqual('gaia_imaging.csv' in queries,pipeline=='imaging')
+                self.assertEqual('g_ccds.csv' in queries,pipeline=='imaging')
+                self.assertEqual('ps1.csv' in queries,pipeline=='gaia_neighbour')
+                if pipeline=='imaging':
+                    measurements=read_config(root/'generated/measurement_inputs.json')
+                    self.assertTrue(all(value['enabled'] is False for value in measurements['surveys'].values()))
+
     def test_one_inline_config_builds_both_searches_and_native_measurements(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -48,8 +81,6 @@ class AcquisitionIntegrationTests(unittest.TestCase):
                 frame = gaia[['source_id','ra','dec']].copy()
                 for magnitude, error in specification['bands'].values():
                     frame[magnitude], frame[error] = 19., .1
-                if name == 'sdss':
-                    frame['sdss_clean'], frame['sdss_mode'] = True, 1
                 frames[name] = frame
             frames['desi'] = pd.DataFrame({'targetid':['400','401'], 'release':[9010,9010],
                 **{f'{quantity}_{band}':[100.,100.] if quantity=='flux' else [1.,1.]
@@ -57,20 +88,20 @@ class AcquisitionIntegrationTests(unittest.TestCase):
             frames['ccd'] = pd.DataFrame([dict(ra=30.,dec=0.,filter='g',ccd_cuts=0,camera='decam',
                 width=2048,height=2048,crpix1=1024.,crpix2=1024.,crval1=30.,crval2=0.,
                 cd1_1=-.262/3600,cd1_2=0.,cd2_1=0.,cd2_2=.262/3600,mjd_obs=60000.,exptime=100.,sig1=1.)])
-            database = FixtureWithIds(frames)
+            database = FixtureCatalogues(frames)
             config = dict(_directory=str(root),quasar_catalogue=dict(catalogue='quasars.csv',
                 catalogue_label='DESI_DR1_QSO',redshift_kind='spectroscopic',
                 columns=dict(object_id='object_id',ra='ra',dec='dec',redshift='z',native_id='native_id'),
                 catalogue_object_id_columns={'DESI_DR1_QSO':'native_id'},catalogue_object_id_format='json_array'),
-                sources={name:source_spec(name,frame) for name,frame in frames.items() if name not in ('ccd','sdss')},
-                public_sources={'ccd':'legacy_dr9_ccds','sdss':'sdss_dr17'},morphology_images={'download_missing':True})
+                sources={name:source_spec(name,frame) for name,frame in frames.items() if name != 'ccd'},
+                public_sources={'ccd':'legacy_dr9_ccds'},morphology_images={'download_missing':True})
 
             def public_export(service, targets, path, radius, resume):
-                name = 'ccd' if service == 'legacy_dr9_ccds' else 'sdss'
-                return database.export_cones(source_spec(name,frames[name]),targets,path,radius)
+                self.assertEqual(service, 'legacy_dr9_ccds')
+                return database.export_cones(source_spec('ccd',frames['ccd']),targets,path,radius)
 
             with (patch.object(socket.socket,'connect',side_effect=AssertionError('Network forbidden')),
-                  patch('scripts.query_wsdb_inputs.export_public_sources',side_effect=public_export)):
+                  patch('scripts.shared.acquire_inputs.export_public_sources',side_effect=public_export)):
                 summary = prepare_inputs(config,root/'generated',client=database)
                 parent = pd.read_csv(root/'generated/request_positions/one_arcsecond/discovered_parent.csv',
                                      dtype={'matched_gaia_source_id':'string','primary_qso_objid':'string'})
@@ -116,7 +147,7 @@ class AcquisitionIntegrationTests(unittest.TestCase):
                                       secondary_ra=[ra[1]],secondary_dec=[dec[1]],gaia_ra=[ra[0]],gaia_dec=[dec[0]]))
         with TemporaryDirectory() as directory:
             config=dict(_directory=directory,morphology_images=dict(path_template='{qso_parent_index}.fits',download_missing=True))
-            with patch('catalogue_downloads.requests.get',return_value=response) as request:
+            with patch('dual_agn.catalogue_downloads.requests.get',return_value=response) as request:
                 measured=measure_candidates(candidates,config)
                 reused=measure_candidates(candidates,config)
             self.assertEqual(request.call_count,1)
@@ -139,22 +170,20 @@ class AcquisitionIntegrationTests(unittest.TestCase):
             self.assertFalse(path.exists())
 
     def test_public_empty_results_have_coverage_but_errors_do_not(self):
-        targets=pd.DataFrame(dict(source_id=['9007199254740993'],ra=[10.],dec=[0.]))
-        _,parameters,_=public_query('sdss_dr17',targets,2.)
-        self.assertTrue(parameters['cmd'].lstrip().startswith('SELECT'))
+        targets=pd.DataFrame(dict(qso_parent_index=[0],ra=[10.],dec=[0.]))
+        _,parameters,fields=public_query('legacy_dr9_ccds',targets,2340.)
+        self.assertIn('ls_dr9.ccds_annotated', parameters['sql'])
         with TemporaryDirectory() as directory:
             root=Path(directory)
-            session=Mock();session.get.return_value=Mock(text=','.join(SDSS_FIELDS)+'\n')
-            path,coverage=export_public_sources('sdss_dr17',targets,root/'sdss.csv',2.,session=session)
+            session=Mock();session.get.return_value=Mock(text=','.join(fields)+'\n')
+            path,coverage=export_public_sources('legacy_dr9_ccds',targets,root/'ccds.csv',2340.,session=session)
             self.assertTrue(pd.read_csv(path).empty)
-            self.assertEqual(pd.read_csv(coverage,dtype={'source_id':'string'}).source_id.item(),'9007199254740993')
+            self.assertEqual(pd.read_csv(coverage).qso_parent_index.item(),0)
+            self.assertEqual(session.get.call_args.kwargs['headers']['X-DL-AuthToken'],'anonymous.0.0.anon_access')
             session.get.return_value=Mock(text='service error')
             with self.assertRaises(ValueError):
-                export_public_sources('sdss_dr17',targets,root/'failed.csv',2.,session=session)
+                export_public_sources('legacy_dr9_ccds',targets,root/'failed.csv',2340.,session=session)
             self.assertFalse((root/'failed_coverage.csv').exists())
-            session.get.return_value=Mock(text=','.join(['qso_parent_index','target_ra','target_dec',*CCD_FIELDS])+'\n')
-            export_public_sources('legacy_dr9_ccds',targets.rename(columns={'source_id':'qso_parent_index'}).assign(qso_parent_index=0),root/'ccds.csv',2340.,session=session)
-            self.assertEqual(session.get.call_args.kwargs['headers']['X-DL-AuthToken'],'anonymous.0.0.anon_access')
 
     @unittest.skipUnless(importlib.util.find_spec('psycopg'), 'Optional WSDB driver is not installed')
     def test_wsdb_batches_have_one_header_and_resume_verified_raw_chunks(self):

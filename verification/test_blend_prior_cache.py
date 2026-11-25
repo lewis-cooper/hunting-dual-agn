@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from chance_alignments.engine.cache_blend_priors import CachedMagnitudePrior
+from dual_agn.blend_priors import CachedMagnitudePrior
 
 
 class BlendPriorCacheTests(unittest.TestCase):

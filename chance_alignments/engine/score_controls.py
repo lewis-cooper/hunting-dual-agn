@@ -43,7 +43,7 @@ def match_catalogues(tractor, gaia):
 
 def component_scores(frame, models, threshold, role='secondary',skip_known_failures=False):
     """Native grz policy, per-object Quaia error, support test and both model variants."""
-    from one_arcsecond import score_resolved_candidates
+    from dual_agn.one_arcsecond import score_resolved_candidates
     if not np.isfinite(frame.redshift_error).all() or frame.redshift_error.lt(0).any():
         raise ValueError('Controls need finite, non-negative redshift uncertainties')
     model_input=frame.copy()
@@ -98,6 +98,25 @@ def component_scores(frame, models, threshold, role='secondary',skip_known_failu
     return scored
 
 
+def cached_scores(frame,models,threshold,role,root,chunk_size=2500):
+    path=root/f'{role}_model_score_cache.parquet'
+    cached=pd.read_parquet(path) if path.exists() else pd.DataFrame()
+    known=set(cached.trial_id) if len(cached) else set()
+    missing=frame.loc[~frame.trial_id.isin(known)]
+    outputs=[cached] if len(cached) else []
+    for start in range(0,len(missing),chunk_size):
+        batch=missing.iloc[start:start+chunk_size]
+        scored=component_scores(batch,models,threshold,role=role,skip_known_failures=True)
+        fields=['trial_id']+[column for column in scored if column not in batch]
+        outputs.append(scored[fields])
+        pd.concat(outputs,ignore_index=True).to_parquet(path,index=False,compression='zstd')
+        print(f'{role} component models: {min(start+chunk_size,len(missing))}/{len(missing)} new rows',flush=True)
+    cache=pd.concat(outputs,ignore_index=True) if outputs else pd.DataFrame()
+    if not len(frame):
+        return frame
+    return frame.merge(cache,on='trial_id',how='left',validate='one_to_one')
+
+
 def configure_production(args):
     """Redirect every production runtime write before importing the scorer."""
     os.environ['PAPER1_OUTPUT_ROOT']=str(args.output.resolve()/'scorer_runtime')
@@ -125,7 +144,7 @@ def configure_production(args):
 def score_blends(trials,args,models):
     from qso_pcolor import Photometry
     from qso_pcolor.blend import BlendModel
-    from redshift_uncertainty import blend_score_with_redshift_error
+    from dual_agn.redshift_uncertainty import blend_score_with_redshift_error
     if not args.blend_photometry and not args.blend_grz_diagnostic:
         return pd.DataFrame()
     supplied=read_csv(args.blend_photometry) if args.blend_photometry else None
@@ -172,7 +191,7 @@ def score_blends(trials,args,models):
             if name not in blend_models:
                 blend_models[name]=BlendModel.load(args.models/f'20261005_{name}_qlf')
                 if getattr(args,'cache_population_priors',False):
-                    from cache_blend_priors import cache_population_priors
+                    from dual_agn.blend_priors import cache_population_priors
                     blend_models[name]=cache_population_priors(blend_models[name])
             model=blend_models[name]
             flux=np.full((1,len(model.bands)),np.nan); variance=np.full_like(flux,np.inf)
@@ -248,7 +267,7 @@ def score_blends(trials,args,models):
         'models':str(args.models.resolve()),'repo':str(args.repo.resolve()),
         'input_photometry':str(args.blend_photometry.resolve()) if args.blend_photometry else None,
         'input_photometry_sha256':hashlib.sha256(args.blend_photometry.read_bytes()).hexdigest() if args.blend_photometry else None,
-        'scorer_sha256':hashlib.sha256((args.repo/'redshift_uncertainty.py').read_bytes()).hexdigest(),
+        'scorer_sha256':hashlib.sha256((args.repo/'dual_agn/redshift_uncertainty.py').read_bytes()).hexdigest(),
         'n_input_controls':len(trials),'n_scored_controls':len(rows),'runtime_cap':args.max_blend_controls,
         'selection':'finite Bayes factors in both variants; QQ favoured in either; secondary PM applied in summary',
         'photometry_policy':'Legacy plus PS1 when present for primary, otherwise NSC/SkyMapper; summed independent native fluxes and variances',

@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-from settings import DUSTMAP_ROOT, INPUT_ROOT, IMAGING_INPUT_ROOT, MODEL_ROOT, OUTPUT_ROOT, ROOT, WORK_ROOT
+from dual_agn.settings import DUSTMAP_ROOT, INPUT_ROOT, IMAGING_INPUT_ROOT, MODEL_ROOT, OUTPUT_ROOT, ROOT, WORK_ROOT
 
 
 def resolve_config(path):
@@ -80,7 +80,7 @@ def prepare_runtime(config):
             '--imaging-input-root', str(config['imaging_input_directory']),
             '--output', str(prepared)]
         subprocess.run(command, cwd=ROOT, check=True)
-        modules = ['one_arcsecond.py', 'photometry.py', 'redshift_uncertainty.py', 'redshift_inputs.py', 'score_selection.py']
+        modules = ['dual_agn/one_arcsecond.py', 'dual_agn/photometry.py', 'dual_agn/redshift_uncertainty.py', 'dual_agn/redshift_inputs.py', 'dual_agn/score_selection.py']
         version = {name: file_hash(ROOT/name) for name in modules}
         calibration = config['products_directory']/'threshold_calibration.json'
         version['calibration_sha256'] = file_hash(calibration)

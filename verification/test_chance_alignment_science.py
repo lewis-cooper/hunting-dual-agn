@@ -14,7 +14,7 @@ from prepare_matched_parent_controls import allocate_quotas
 from score_controls import match_catalogues
 from summarize_repaired_controls import estimate_repaired_rate
 from build_repaired_blended_controls import augment_background_fluxes
-from cache_blend_priors import CachedMagnitudePrior
+from dual_agn.blend_priors import CachedMagnitudePrior
 from summarize_parent_densities import density_interval
 from score_parent_blended_controls import selected_trials
 

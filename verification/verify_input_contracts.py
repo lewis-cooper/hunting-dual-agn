@@ -8,11 +8,12 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from settings import (DUSTMAP_ROOT, IMAGING_MORPHOLOGY_PATH, INPUT_ROOT,
+from dual_agn.settings import (DUSTMAP_ROOT, IMAGING_MORPHOLOGY_PATH, INPUT_ROOT,
                       IMAGING_INPUT_ROOT, IMAGING_SEARCH_ROOT,
                       ONE_ARCSECOND_PARENT_PATH, ONE_ARCSECOND_SEARCH_ROOT,
                       MODEL_BUNDLES, MODEL_REVISION, PACKAGE_ROOT,
                       ONE_INPUT_ROOT, ROOT, survey_products)
+from dual_agn.workflow import PIPELINE_CHOICES
 
 
 def sha256(path):
@@ -42,17 +43,19 @@ def main():
     parser.add_argument('--external-only',action='store_true',help='Check external inputs before generating either discovery stage')
     parser.add_argument('--models-only',action='store_true',help='Check model/dust prerequisites without survey inputs or network access')
     parser.add_argument('--measurement-config', type=Path, default=ROOT/'measurement_inputs.local.json')
+    parser.add_argument('--pipeline', choices=PIPELINE_CHOICES, default='both')
     args = parser.parse_args()
     if args.models_only:
         verify_models()
         print('Verified pinned model assets/revision and extinction maps; no survey query performed.')
         return
-    from measurement_inputs import read_config, catalogue_files, local_path
+    from dual_agn.measurement_inputs import read_config, catalogue_files, local_path
     config = read_config(args.measurement_config)
-    if not config.get('morphology_images', {}).get('path_template'):
+    if args.pipeline != 'gaia_neighbour' and not config.get('morphology_images', {}).get('path_template'):
         raise ValueError('Set morphology_images.path_template for the r-band morphology measurement')
     native = [local_path(config, config['quaia_catalogue'])] if config.get('quaia_catalogue') else []
-    for specification in [config['gaia'], config['tractor'], *([config['desi']] if config.get('desi') else []), *config['surveys'].values()]:
+    surveys = [] if args.pipeline == 'imaging' else list(config['surveys'].values())
+    for specification in [config['gaia'], config['tractor'], *([config['desi']] if config.get('desi') else []), *surveys]:
         if specification.get('enabled') is False:
             continue
         native.extend(catalogue_files(config, specification))
@@ -70,7 +73,7 @@ def main():
 
     generated = []
     if not args.external_only:
-        generated = [IMAGING_INPUT_ROOT/name for name in ['imaging_channel.fits',
+        generated = [] if args.pipeline == 'gaia_neighbour' else [IMAGING_INPUT_ROOT/name for name in ['imaging_channel.fits',
             'imaging_components.fits','imaging_labelled.fits','imaging_tractor.fits',
             'quaia_imaging_reference.fits']]
         required_paths.extend(generated)

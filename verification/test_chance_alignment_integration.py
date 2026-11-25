@@ -24,8 +24,9 @@ class ChanceAlignmentIntegrationTests(unittest.TestCase):
         sequence = commands('all', Path('controls.json'), resume=True)
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
         self.assertEqual([name for name in modules if name.startswith('scripts.')][:-1],
-                         ['scripts.query_wsdb_inputs']+['scripts.'+name for name in VETTING_STAGES])
-        self.assertEqual(sequence[-2][-1], 'verification/verify_example_run.py')
+                         ['scripts.shared.acquire_inputs']+['scripts.'+name for name in VETTING_STAGES])
+        self.assertIn('verification/verify_example_run.py', sequence[-2])
+        self.assertEqual(sequence[-2][-2:], ['--pipeline', 'both'])
         self.assertEqual(modules[-1], 'scripts.run_chance_alignments')
         self.assertIn('--resume', sequence[-1])
 

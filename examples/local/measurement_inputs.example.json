@@ -1,0 +1,94 @@
+{
+  "gaia": {
+    "path": "data/inputs/native/gaia.fits",
+    "coverage": "data/inputs/native/gaia_coverage.csv"
+  },
+  "tractor": {
+    "paths": [
+      "data/inputs/native/tractor/*.fits"
+    ],
+    "coverage": "data/inputs/native/tractor_coverage.csv"
+  },
+  "desi": {
+    "path": "data/inputs/native/desi_target_photometry.fits",
+    "columns": {
+      "targetid": "TARGETID",
+      "release": "RELEASE",
+      "flux_g": "FLUX_G",
+      "flux_r": "FLUX_R",
+      "flux_z": "FLUX_Z",
+      "flux_ivar_g": "FLUX_IVAR_G",
+      "flux_ivar_r": "FLUX_IVAR_R",
+      "flux_ivar_z": "FLUX_IVAR_Z"
+    }
+  },
+  "quaia_catalogue": "data/inputs/quaia_G20.0.fits",
+  "surveys": {
+    "ps1": {
+      "path": "data/inputs/native/ps1.csv",
+      "coverage": "data/inputs/native/ps1_coverage.csv",
+      "columns": {
+        "source_id": "source_id",
+        "ra": "ra",
+        "dec": "dec",
+        "ps1_gkronmag": "gkronmag",
+        "ps1_gkronmagerr": "gkronmagerr",
+        "ps1_rkronmag": "rkronmag",
+        "ps1_rkronmagerr": "rkronmagerr",
+        "ps1_ikronmag": "ikronmag",
+        "ps1_ikronmagerr": "ikronmagerr",
+        "ps1_zkronmag": "zkronmag",
+        "ps1_zkronmagerr": "zkronmagerr",
+        "ps1_ykronmag": "ykronmag",
+        "ps1_ykronmagerr": "ykronmagerr"
+      }
+    },
+    "skymapper": {
+      "path": "data/inputs/native/skymapper.csv",
+      "coverage": "data/inputs/native/skymapper_coverage.csv",
+      "columns": {
+        "source_id": "source_id",
+        "ra": "ra",
+        "dec": "dec",
+        "skymapper_u_petro": "u_petro",
+        "skymapper_e_u_petro": "e_u_petro",
+        "skymapper_v_petro": "v_petro",
+        "skymapper_e_v_petro": "e_v_petro",
+        "skymapper_g_petro": "g_petro",
+        "skymapper_e_g_petro": "e_g_petro",
+        "skymapper_r_petro": "r_petro",
+        "skymapper_e_r_petro": "e_r_petro",
+        "skymapper_i_petro": "i_petro",
+        "skymapper_e_i_petro": "e_i_petro",
+        "skymapper_z_petro": "z_petro",
+        "skymapper_e_z_petro": "e_z_petro"
+      }
+    },
+    "nsc": {
+      "path": "data/inputs/native/nsc.csv",
+      "coverage": "data/inputs/native/nsc_coverage.csv",
+      "columns": {
+        "source_id": "source_id",
+        "ra": "ra",
+        "dec": "dec",
+        "nsc_umag": "umag",
+        "nsc_uerr": "uerr",
+        "nsc_gmag": "gmag",
+        "nsc_gerr": "gerr",
+        "nsc_rmag": "rmag",
+        "nsc_rerr": "rerr",
+        "nsc_imag": "imag",
+        "nsc_ierr": "ierr",
+        "nsc_zmag": "zmag",
+        "nsc_zerr": "zerr",
+        "nsc_ymag": "ymag",
+        "nsc_yerr": "yerr",
+        "nsc_vrmag": "vrmag",
+        "nsc_vrerr": "vrerr"
+      }
+    }
+  },
+  "morphology_images": {
+    "path_template": "data/inputs/rband_images/qso_{qso_parent_index:06d}.fits"
+  }
+}

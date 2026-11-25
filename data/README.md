@@ -2,7 +2,7 @@
 
 The default workflow starts with a supplied quasar catalogue and acquires raw
 survey records through the sources in `wsdb_inputs.local.json`. One configuration
-contains the master column map, WSDB sources, the original public SDSS/exposure
+contains the master column map, WSDB sources, the public exposure
 sources and image-download settings. It builds all analysis-specific tables.
 
 Positions are ICRS degrees. Query radii are arcseconds unless a name explicitly
@@ -12,7 +12,7 @@ never convert a large Gaia/DESI ID through floating point.
 
 ## Quasar catalogue
 
-The inline `quasar_catalogue` object in `wsdb_inputs.example.json` supports CSV
+The inline `quasar_catalogue` object in `examples/wsdb_inputs.example.json` supports CSV
 and FITS input and maps canonical fields to native columns:
 
 | Field | Meaning |
@@ -69,14 +69,9 @@ region and survey release. Query success alone does not establish survey footpri
 | `ps1` | Source ID/position and native grizy Kron magnitudes/errors, mapped to `ps1_*kronmag`/`ps1_*kronmagerr` |
 | `skymapper` | Source ID/position and uvgriz Petrosian magnitudes/errors, mapped to `skymapper_*_petro`/`skymapper_e_*_petro` |
 | `nsc` | Source ID/position and ugrizyVR native magnitudes/errors, mapped to `nsc_*mag`/`nsc_*err` |
-| `vhs` | Source ID/position and Y/J/H/Ks aperture-3 magnitudes/errors |
-| `allwise` | Source ID/position and W1/W2 `mpro`/`sigmpro` |
 | `ccd` (optional WSDB alternative) | Centre position, `filter`, `ccd_cuts`, `camera`, dimensions, TAN WCS, `mjd_obs`, `exptime`, `sig1` |
 
-The example uses `public_sources` for `sdss: "sdss_dr17"` and
-`ccd: "legacy_dr9_ccds"`, as in the previous acquisition scripts. SDSS DR17
-PhotoObjAll supplies ugriz PSF magnitudes/errors and clean/mode flags for the
-inventory; it supplies no parent quasar redshift. Data Lab
+The example uses `public_sources` for `ccd: "legacy_dr9_ccds"`. Data Lab
 `ls_dr9.ccds_annotated` supplies quality-selected ground-based g exposures with
 WCS and time metadata for DCR. Gaia epoch-photometry CCD tables cannot supply
 these ground-based observations. The public inputs are recorded separately
@@ -113,7 +108,8 @@ hashed checkpoints. Only complete successful queries yield coverage records.
 An error stops the workflow instead of becoming an empty field.
 
 Generated configurations and raw files are under `PAPER1_WORK_ROOT/wsdb_inputs`.
-The final six products remain separate. The only server writes are temporary
+Final products remain separate: six for both pipelines or four for a single
+pipeline. The only server writes are temporary
 query-position tables. Credential values are neither printed nor saved.
 
 ## Images and morphology
@@ -145,8 +141,8 @@ examples. The master adapter needs raw Gaia detections and a coverage CSV keyed
 by input `object_id`, with `ra_deg`, `dec_deg`, `query_radius_arcsec >= 2`.
 It computes positional associations and counts itself.
 
-The measurement builder reads native Gaia, Tractor, DESI and six survey inputs.
-Their column maps are in `measurement_inputs.example.json`. Positional inputs
+The measurement builder reads native Gaia, Tractor, DESI, PS1, NSC and SkyMapper.
+Their column maps are in `examples/local/measurement_inputs.example.json`. Positional inputs
 need coverage keyed by exact anchor `source_id`, with cone centre and radius.
 Successful empty cones must be included. Set `full_catalogue: true` only for a
 complete survey catalogue covering the relevant region, never to bypass missing

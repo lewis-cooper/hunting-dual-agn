@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from imaging import attach_quaia_redshift_errors
-from score_selection import (build_imaging_dcr_flags, build_secondary_pm_flags,
+from dual_agn.imaging import attach_quaia_redshift_errors
+from dual_agn.score_selection import (build_imaging_dcr_flags, build_secondary_pm_flags,
                              has_two_distinct_gaia_sources)
 
 
