@@ -18,7 +18,7 @@ from .pairs import channel_row, flux_colour
 MASTER_COLUMNS = ['qso_parent_index', 'source_id', 'gaia_ra', 'gaia_dec',
                   'adopted_redshift', 'adopted_redshift_catalogue', 'sdss_name',
                   'z', 'q_ra', 'q_dec', 'catalogue_memberships',
-                  'in_sdss', 'in_desi', 'in_quaia', 'phot_g_mean_mag']
+                  'in_sdss', 'in_desi', 'in_quaia', 'phot_g_mean_mag', 'adopted_redshift_error', 'redshift_kind']
 TRACTOR_COLUMNS = ['release', 'brickid', 'objid', 'brick_primary', 'type', 'ra', 'dec',
                    'flux_g', 'flux_r', 'flux_z', 'flux_ivar_g', 'flux_ivar_r', 'flux_ivar_z',
                    'nobs_g', 'nobs_r', 'nobs_z', 'maskbits', 'fracflux_r',
@@ -62,7 +62,9 @@ def resolve_config(path):
 def input_paths(config, discovery_only=False):
     names = ['master_catalogue', 'tractor_coverage']
     if not discovery_only:
-        names += ['gaia_catalogue', 'gaia_coverage', 'ccd_catalogue', 'ccd_coverage', 'quaia_catalogue']
+        names += ['gaia_catalogue', 'gaia_coverage', 'ccd_catalogue', 'ccd_coverage']
+        if config.get('quaia_catalogue'):
+            names.append('quaia_catalogue')
     missing_keys = [name for name in names if not config.get(name)]
     if missing_keys:
         raise ValueError('Missing local input settings: '+', '.join(missing_keys)+'. Use --stage discover to find pairs first without Gaia/CCD inputs.')

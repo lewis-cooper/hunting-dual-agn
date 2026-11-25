@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from redshift_inputs import redshift_errors
 
 ENGINE = Path(__file__).resolve().parent/'engine'
 sys.path.insert(0, str(ENGINE))
@@ -17,7 +18,7 @@ from control_catalogues import ROUTES, latitude_bin, read_csv, read_fits
 def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir, imaging_input_root=None):
     """Use input pairs before colour/PM filtering, never the final sample as N_input."""
     one = read_csv(products/'one_arcsecond_scores.csv')
-    components = read_fits(input_root/'one_arcsecond_components.fits',
+    components = read_fits(work_root/'one_arcsecond_inputs/one_arcsecond_components.fits',
                            ['component_gaia_source_id', 'gaia_phot_g_mean_mag'])
     components['component_gaia_source_id'] = components.component_gaia_source_id.astype('string')
     gaia_mag = components.drop_duplicates('component_gaia_source_id').set_index(
@@ -43,8 +44,7 @@ def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir, 
             pairs[f'primary_ivar_{band}'] = group[f'primary_decals_flux_ivar_{band}']
         pairs['primary_release'] = group.primary_decals_release
         pairs['primary_type'] = group.primary_decals_type
-        pairs['redshift_error']=pairs.redshift_error.where(
-            pairs.redshift_catalogue.str.contains('quaia',case=False),0.)
+        pairs['redshift_error'] = redshift_errors(group, 'primary_qso_zerr', 'primary_qso_catalog', 'primary_qso_redshift_kind')
         pairs['photometry_class'] = 'not_applicable'
         pairs['band_policy'] = ''
         if route == 'blended':
@@ -82,15 +82,18 @@ def prepare_control_inputs(products, input_root, work_root, quaia_path, outdir, 
             'pair_separation_arcsec': group.component_sep_arcsec,
             'primary_flux_independent': True,
         })
-        quaia = read_fits(quaia_path or imaging_input_root/'quaia_imaging_reference.fits',
-                         ['source_id','redshift_quaia','redshift_quaia_err']).set_index('source_id')
-        quaia.index = quaia.index.astype('string')
-        errors = group.source_id.astype('string').map(quaia.redshift_quaia_err)
-        uses_quaia = group.adopted_redshift_catalogue.str.contains('quaia', case=False)
-        reference_z=group.source_id.astype('string').map(quaia.redshift_quaia)
-        inconsistent=uses_quaia & np.isfinite(reference_z) & ~np.isclose(group.adopted_redshift,reference_z,rtol=0,atol=1e-12)
-        if inconsistent.any():raise ValueError('Quaia reference redshifts differ from the adopted primary redshifts')
-        pairs['redshift_error'] = errors.where(uses_quaia, 0.)
+        if 'redshift_kind' in group:
+            pairs['redshift_error'] = redshift_errors(group, 'adopted_redshift_error', 'adopted_redshift_catalogue', 'redshift_kind')
+        else:
+            quaia = read_fits(quaia_path or imaging_input_root/'quaia_imaging_reference.fits',
+                             ['source_id','redshift_quaia','redshift_quaia_err']).set_index('source_id')
+            quaia.index = quaia.index.astype('string')
+            errors = group.source_id.astype('string').map(quaia.redshift_quaia_err)
+            uses_quaia = group.adopted_redshift_catalogue.str.contains('quaia', case=False)
+            reference_z=group.source_id.astype('string').map(quaia.redshift_quaia)
+            inconsistent=uses_quaia & np.isfinite(reference_z) & ~np.isclose(group.adopted_redshift,reference_z,rtol=0,atol=1e-12)
+            if inconsistent.any():raise ValueError('Quaia reference redshifts differ from the adopted primary redshifts')
+            pairs['redshift_error'] = errors.where(uses_quaia, 0.)
         for band in 'grz':
             pairs[f'primary_flux_{band}'] = group.qso_parent_index.map(primary[f'flux_{band}'])
             ivar = group.qso_parent_index.map(primary[f'flux_ivar_{band}'])

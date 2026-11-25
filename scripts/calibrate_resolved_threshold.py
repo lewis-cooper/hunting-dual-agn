@@ -24,6 +24,8 @@ print(f'{len(pm_score_candidates)} systems plotted and fitted; {(~finite_pm_scor
 pm_score_coordinates = pm_score_candidates[pm_score_columns[:2]].to_numpy(float)
 coordinate_mean = pm_score_coordinates.mean(axis=0)
 coordinate_scale = pm_score_coordinates.std(axis=0)
+if len(pm_score_candidates) < 6 or not (np.isfinite(coordinate_scale) & (coordinate_scale > 0)).all():
+    raise ValueError('Threshold calibration needs at least six finite eligible resolved systems with varying score and PM significance below 70; the supplied catalogue cannot support this fit')
 pm_score_gaussian_fit = GaussianMixture(
     n_components=2,
     covariance_type='full',

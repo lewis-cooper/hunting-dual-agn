@@ -4,7 +4,7 @@ from plot_style import plt, save_figure
 from settings import IDENTIFIER_DTYPES, ONE_ROOT
 
 systems = pd.read_csv(
-    ONE_ROOT / 'scoring_input_audit_712.csv',
+    ONE_ROOT / 'scoring_inputs.csv',
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )

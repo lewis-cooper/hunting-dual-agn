@@ -7,35 +7,43 @@ from astropy.coordinates import SkyCoord, search_around_sky
 from astropy.table import Table
 from settings import *
 from photometry import read_fits
+from one_arcsecond_search import validate_measurement_identities
 from one_arcsecond import build_redshift_lookup, apply_redshift_lookup, attach_tractor_diagnostics
 ONE_ROOT.mkdir(parents=True, exist_ok=True)
 (ONE_ROOT / 'inputs').mkdir(exist_ok=True)
-systems = pd.read_csv(INPUT_ROOT / 'eligibility_audit_712.csv', dtype=IDENTIFIER_DTYPES)
+systems = pd.read_csv(ONE_INPUT_ROOT / 'component_quality_audit.csv', dtype=IDENTIFIER_DTYPES)
 candidates = pd.read_csv(
-    INPUT_ROOT / 'secondary_measurements_324.csv',
+    ONE_INPUT_ROOT / 'quality_resolved_measurements.csv',
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )
-original_parent = pd.read_csv(INPUT_ROOT / 'original_parent_712.csv', dtype=IDENTIFIER_DTYPES)
-lookup = build_redshift_lookup(systems, original_parent, INPUT_ROOT / 'quaia_712_reference.fits')
+original_parent = pd.read_csv(ONE_ARCSECOND_PARENT_PATH, dtype={**IDENTIFIER_DTYPES, 'matched_gaia_source_id': 'string'})
+validate_measurement_identities(original_parent, systems)
+# Discovery is authoritative for parent metadata; measurements supply component associations.
+parent_lookup = original_parent.set_index('qso_group_id')
+for field in ('primary_qso_catalog', 'primary_qso_name', 'primary_qso_ra', 'primary_qso_dec', 'primary_qso_z'):
+    systems[field] = systems.qso_group_id.map(parent_lookup[field])
+    candidates[field] = candidates.qso_group_id.map(parent_lookup[field])
+validate_measurement_identities(original_parent.loc[original_parent.qso_group_id.isin(candidates.qso_group_id)], candidates)
+lookup = build_redshift_lookup(systems, original_parent, ONE_INPUT_ROOT / 'quaia_reference.fits')
 systems = apply_redshift_lookup(systems, lookup)
 candidates = apply_redshift_lookup(candidates, lookup)
-lookup.to_csv(ONE_ROOT / 'inputs/adopted_redshifts_712.csv', index=False)
-systems.to_csv(ONE_ROOT / 'inputs/eligibility_audit_712.csv', index=False)
-candidates.to_csv(ONE_ROOT / 'inputs/secondary_measurements_324.csv', index=False)
+lookup.to_csv(ONE_ROOT / 'inputs/adopted_redshifts.csv', index=False)
+systems.to_csv(ONE_ROOT / 'inputs/component_quality_audit.csv', index=False)
+candidates.to_csv(ONE_ROOT / 'inputs/quality_resolved_measurements.csv', index=False)
 # Reproduce the notebook's corrected-input CSV boundary before any calculations.
 # The external support sampler hashes exact floating-point inputs.
-systems = pd.read_csv(ONE_ROOT / 'inputs/eligibility_audit_712.csv', dtype=IDENTIFIER_DTYPES)
-candidates = pd.read_csv(ONE_ROOT / 'inputs/secondary_measurements_324.csv', dtype=IDENTIFIER_DTYPES)
-resolution_path = INPUT_ROOT / 'one_arcsecond_resolution.csv'
-tractor_path = INPUT_ROOT / 'one_arcsecond_tractor.csv'
+systems = pd.read_csv(ONE_ROOT / 'inputs/component_quality_audit.csv', dtype=IDENTIFIER_DTYPES)
+candidates = pd.read_csv(ONE_ROOT / 'inputs/quality_resolved_measurements.csv', dtype=IDENTIFIER_DTYPES)
+resolution_path = ONE_INPUT_ROOT / 'one_arcsecond_resolution.csv'
+tractor_path = ONE_INPUT_ROOT / 'one_arcsecond_tractor.csv'
 resolution = pd.read_csv(resolution_path, dtype={'qso_group_id': str})
-systems = systems.merge(
+systems = systems.drop(columns='decals_resolution_class', errors='ignore').merge(
     resolution[['qso_group_id', 'decals_resolution_class']],
     on='qso_group_id',
     validate='one_to_one'
 )
-desi_target_photometry = pd.read_csv(INPUT_ROOT / 'desi_target_photometry.csv', dtype=IDENTIFIER_DTYPES)
+desi_target_photometry = pd.read_csv(ONE_INPUT_ROOT / 'desi_target_photometry.csv', dtype=IDENTIFIER_DTYPES)
 systems = systems.merge(desi_target_photometry, on='qso_group_id', how='left', validate='one_to_one')
 primary_only_mask = systems.decals_resolution_class.eq('decals_unresolved_primary_only')
 nonresolved_class_mask = ~systems.decals_resolution_class.eq('decals_resolved')
@@ -91,10 +99,11 @@ systems['n_sources_near_either'] = systems.index.to_series().map(near_either.gro
 systems['n_sources_near_both'] = systems.index.to_series().map(near_both.groupby('system_index').size()).fillna(0).astype(int)
 systems['one_local_source_near_both'] = systems.n_sources_near_either.eq(1) & systems.n_sources_near_both.eq(1)
 from astropy.table import Table
-component_metadata_path = INPUT_ROOT / 'one_arcsecond_components.fits'
+component_metadata_path = ONE_INPUT_ROOT / 'one_arcsecond_components.fits'
 component_metadata = Table.read(component_metadata_path)[['decals_release', 'decals_brickid', 'decals_objid', 'decals_type']].to_pandas()
 component_metadata['decals_type'] = component_metadata.decals_type.map(lambda value: value.decode().strip() if isinstance(value, bytes) else str(value).strip())
-systems = attach_tractor_diagnostics(systems, component_metadata, sources)
+diagnostic_columns = [f'{role}_decals_{field}' for role in ('primary', 'secondary') for field in ('type', 'fracflux_r')]
+systems = attach_tractor_diagnostics(systems.drop(columns=diagnostic_columns, errors='ignore'), component_metadata, sources)
 systems['component_separation_arcsec'] = primary_sky.separation(secondary_sky).arcsec
 new_columns = [
     'qso_group_id',
@@ -104,7 +113,11 @@ new_columns = [
     'secondary_decals_fracflux_r',
     'component_separation_arcsec'
 ]
-candidates = candidates.merge(systems[new_columns], on='qso_group_id', validate='one_to_one')
+candidates['photometric_system'] = np.where(candidates.secondary_decals_release.eq(9011), 'decals_dr9_north', 'decals_dr9_south')
+secondary_candidate_sky = SkyCoord(candidates.secondary_component_ra.to_numpy(float)*u.deg, candidates.secondary_component_dec.to_numpy(float)*u.deg)
+candidates['secondary_galactic_l_deg'] = secondary_candidate_sky.galactic.l.deg
+candidates['secondary_galactic_b_deg'] = secondary_candidate_sky.galactic.b.deg
+candidates = candidates.drop(columns=new_columns[1:], errors='ignore').merge(systems[new_columns], on='qso_group_id', validate='one_to_one')
 print('Measured component separations:', systems.component_separation_arcsec.agg(['min', 'max']).to_dict())
 print('Secondary morphology missing:', int(systems.secondary_decals_type.isna().sum()))
 unresolved_mask = blend_input_mask & ~resolved_mask
@@ -132,7 +145,7 @@ systems['route_reason'] = np.select(
     ],
     default='two_sources_but_component_quality_failed'
 )
-systems.to_csv(ONE_ROOT / 'scoring_input_audit_712.csv', index=False)
+systems.to_csv(ONE_ROOT / 'scoring_inputs.csv', index=False)
 candidates.to_csv(ONE_ROOT / 'original_resolved_measurements.csv', index=False)
-print('Input:', INPUT_ROOT, 'Output:', ONE_ROOT)
+print('Input:', ONE_INPUT_ROOT, 'Output:', ONE_ROOT)
 print(systems.scoring_route.value_counts().to_string())

@@ -16,12 +16,12 @@ from plot_style import plt, mpl, save_figure
 configure_dustmaps()
 log_r_per_unit_z_threshold = json.loads(THRESHOLD_CALIBRATION_PATH.read_text())['adopted_log_r_threshold']
 
-candidates_712 = pd.read_csv(
-    ONE_ROOT / 'scoring_input_audit_712.csv',
+scoring_inputs = pd.read_csv(
+    ONE_ROOT / 'scoring_inputs.csv',
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )
-candidate_ids = candidates_712.qso_group_id.to_numpy()
+candidate_ids = scoring_inputs.qso_group_id.to_numpy()
 measurements = []
 
 def add_band(ids, survey, source, band, snr, usable):
@@ -35,10 +35,10 @@ def add_band(ids, survey, source, band, snr, usable):
     }))
 # Source cell ec0b9b51
 for source in ('primary', 'secondary'):
-    release = candidates_712[f'{source}_decals_release']
+    release = scoring_inputs[f'{source}_decals_release']
     for band in 'grz':
-        flux = pd.to_numeric(candidates_712[f'{source}_decals_flux_{band}'], errors='coerce')
-        ivar = pd.to_numeric(candidates_712[f'{source}_decals_flux_ivar_{band}'], errors='coerce')
+        flux = pd.to_numeric(scoring_inputs[f'{source}_decals_flux_{band}'], errors='coerce')
+        ivar = pd.to_numeric(scoring_inputs[f'{source}_decals_flux_ivar_{band}'], errors='coerce')
         usable = release.isin((9010, 9011, 9012)) & np.isfinite(flux) & np.isfinite(ivar) & ivar.gt(0)
         add_band(candidate_ids, 'DECaLS', source, band, flux * np.sqrt(ivar.clip(lower=0)), usable)
 
@@ -63,7 +63,7 @@ for survey, spec in survey_products.items():
 
 # Source cell 7850b63a
 band_snr_df = pd.concat(measurements, ignore_index=True)
-band_snr_df = candidates_712[['qso_group_id']].merge(band_snr_df, on='qso_group_id', how='left', validate='one_to_many').sort_values(['qso_group_id', 'survey', 'source', 'band'], na_position='last')
+band_snr_df = scoring_inputs[['qso_group_id']].merge(band_snr_df, on='qso_group_id', how='left', validate='one_to_many').sort_values(['qso_group_id', 'survey', 'source', 'band'], na_position='last')
 print(f'{band_snr_df.qso_group_id.nunique()} candidates; {band_snr_df.snr.notna().sum()} usable band measurements')
 
 band_snr_df.to_csv(ONE_ROOT / 'photometry_band_inventory.csv', index=False)

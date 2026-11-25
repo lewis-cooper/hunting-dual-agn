@@ -1,3 +1,4 @@
+from redshift_inputs import photometric_redshifts, redshift_errors
 import json
 import numpy as np
 import pandas as pd
@@ -47,7 +48,7 @@ def score_worker_batch(batch):
 def main():
     configure_dustmaps()
     systems = pd.read_csv(
-        ONE_ROOT / 'scoring_input_audit_712.csv',
+        ONE_ROOT / 'scoring_inputs.csv',
         dtype=IDENTIFIER_DTYPES,
         float_precision='round_trip'
     )
@@ -82,7 +83,7 @@ def main():
         ],
         default=np.nan
     )
-    blend_candidates['has_spectroscopic_z'] = blend_candidates.primary_qso_catalog.isin(['DESI_DR1_QSO', 'SDSS_DR16Q'])
+    blend_candidates['has_spectroscopic_z'] = ~photometric_redshifts(blend_candidates, 'primary_qso_catalog', 'primary_qso_redshift_kind')
     blend_candidates['redshift_scope'] = np.where(
         blend_candidates.has_spectroscopic_z,
         'spectroscopic',
@@ -221,9 +222,7 @@ def main():
     worker_count = int(os.environ.get('PAPER1_BLEND_WORKERS', '1'))
     if worker_count < 1:
         raise ValueError('PAPER1_BLEND_WORKERS must be positive')
-    blend_candidates['redshift_error_used'] = np.where(
-        blend_candidates.primary_qso_catalog.eq('QUAIA_G20_V1'),
-        blend_candidates.primary_qso_zerr.fillna(0.0), 0.0)
+    blend_candidates['redshift_error_used'] = redshift_errors(blend_candidates, 'primary_qso_zerr', 'primary_qso_catalog', 'primary_qso_redshift_kind')
     coordinates = blend_candidates[['primary_component_ra', 'primary_component_dec',
                                     'primary_qso_z', 'redshift_error_used']].to_numpy(float)
     blend_score_rows = []

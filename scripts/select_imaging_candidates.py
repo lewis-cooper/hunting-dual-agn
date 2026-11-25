@@ -45,10 +45,6 @@ pm_flags = build_secondary_pm_flags(imaging_scores.secondary_pm_sig, two_gaia,
                                     PM_SIGNIFICANCE_MAX)
 imaging_scores[pm_flags.columns] = pm_flags
 imaging_scores['secondary_pm_significance'] = pd.to_numeric(imaging_scores.secondary_pm_sig, errors='coerce')
-visual_rejections = pd.read_csv(VISUAL_REJECTIONS_PATH, dtype='string').fillna('')
-rejected = visual_rejections.loc[visual_rejections.imaging_qso_parent_index.ne('')].set_index('imaging_qso_parent_index')
-imaging_scores['visual_inspection_rejected'] = imaging_scores.qso_parent_index.astype('string').isin(rejected.index)
-imaging_scores['visual_inspection_rejection_reason'] = imaging_scores.qso_parent_index.astype('string').map(rejected.reason).fillna('')
 model_scores = imaging_model_scores(imaging_scores)
 imaging_scores['minimum_component_log_r_either'] = model_scores.max(axis=1)
 for model in MODELS:
@@ -58,14 +54,14 @@ imaging_pm_pass = imaging_score_pass & imaging_scores.secondary_pm_pass
 pre_morphology_pass = imaging_pm_pass
 morphology_available = np.isfinite(imaging_scores.r_perp_sigma_ratio)
 imaging_morphology_pass = pre_morphology_pass & morphology_available & imaging_scores.r_perp_sigma_ratio.ge(r_perp_min)
-imaging_final_pass = imaging_morphology_pass & ~imaging_scores.visual_inspection_rejected
+imaging_final_pass = imaging_morphology_pass.copy()
 imaging_scores['joint_morphology_pass'] = imaging_morphology_pass
 imaging_scores['joint_score_pass'] = imaging_score_pass
 imaging_scores['joint_secondary_pm_pass'] = imaging_pm_pass
 imaging_scores['joint_pre_morphology_pass'] = pre_morphology_pass
 imaging_scores['joint_final_pass'] = imaging_final_pass
 imaging_selected = imaging_scores.loc[imaging_final_pass].copy()
-print(f'Imaging: score {imaging_score_pass.sum()} -> secondary PM {imaging_pm_pass.sum()} -> morphology {imaging_morphology_pass.sum()} -> saved visual exclusions {len(imaging_selected)}')
+print(f'Imaging: score {imaging_score_pass.sum()} -> secondary PM {imaging_pm_pass.sum()} -> morphology {imaging_morphology_pass.sum()}; automatically selected {len(imaging_selected)}')
 
 def imaging_counts(stage, selection):
     selected = imaging_scores.loc[selection]
@@ -134,8 +130,6 @@ imaging_count_rows.append(imaging_counts('Two-Gaia secondary PM significance < 3
 imaging_count_rows.append(imaging_counts('Morphology measured (coverage)', cumulative_imaging & morphology_available))
 cumulative_imaging &= imaging_morphology_pass
 imaging_count_rows.append(imaging_counts('Measured R_perp >= 1.05', cumulative_imaging))
-cumulative_imaging &= ~imaging_scores.visual_inspection_rejected
-imaging_count_rows.append(imaging_counts('After saved visual exclusions', cumulative_imaging))
 imaging_cutflow = pd.DataFrame(imaging_count_rows)
 assert cumulative_imaging.equals(imaging_final_pass), 'Imaging cutflow and adopted selection differ'
 imaging_cutflow[['One-Gaia', 'Two-Gaia', 'Total']] = imaging_cutflow[['One-Gaia', 'Two-Gaia', 'Total']].astype('Int64')
@@ -144,15 +138,13 @@ imaging_scores['selection_status'] = np.select(
         ~imaging_score_pass,
         imaging_score_pass & ~imaging_pm_pass,
         pre_morphology_pass & ~morphology_available,
-        pre_morphology_pass & morphology_available & ~imaging_morphology_pass,
-        imaging_morphology_pass & imaging_scores.visual_inspection_rejected
+        pre_morphology_pass & morphology_available & ~imaging_morphology_pass
     ],
     [
         'score_rejected_or_ineligible',
         'secondary_pm_rejected',
-        'morphology_pending',
-        'morphology_rejected',
-        'visual_rejected'
+        'morphology_unmeasurable',
+        'morphology_rejected'
     ],
     default='selected'
 )

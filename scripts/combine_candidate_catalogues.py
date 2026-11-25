@@ -1,3 +1,4 @@
+from redshift_inputs import redshift_errors
 from pathlib import Path
 import json
 import numpy as np
@@ -32,8 +33,7 @@ one_arcsecond_points = pd.DataFrame({
     'original_redshift': one_arcsecond_selected.primary_qso_z_original,
     'input_redshift_release': one_arcsecond_selected.redshift_catalogue_release,
     'input_redshift_catalogue': one_arcsecond_selected.primary_qso_catalog,
-    'redshift_error_used': np.where(one_arcsecond_selected.primary_qso_catalog.eq('QUAIA_G20_V1'),
-                                    one_arcsecond_selected.primary_qso_zerr, 0.0),
+    'redshift_error_used': redshift_errors(one_arcsecond_selected, 'primary_qso_zerr', 'primary_qso_catalog', 'primary_qso_redshift_kind'),
     'secondary_pm_significance': one_arcsecond_selected.secondary_pm_significance,
     'secondary_pm_missing': one_arcsecond_selected.secondary_pm_missing,
     'secondary_pm_pass': one_arcsecond_selected.secondary_pm_pass,
@@ -214,7 +214,7 @@ redshift_values_differ = shared & ~np.isclose(
     rtol=0,
     atol=1e-06
 )
-both_photometric = joint_candidates.one_arcsecond_input_redshift_catalogue.str.contains('QUAIA', na=False) & joint_candidates.imaging_input_redshift_catalogue.eq('quaia')
+both_photometric = joint_candidates.one_arcsecond_redshift_error_used.gt(0) & joint_candidates.imaging_redshift_error_used.gt(0)
 joint_candidates['redshift_values_differ'] = redshift_values_differ
 joint_candidates['photometric_redshift_discrepancy'] = redshift_values_differ & both_photometric
 joint_candidates['redshift_difference_imaging_minus_one_arcsecond'] = joint_candidates.imaging_input_redshift - joint_candidates.one_arcsecond_input_redshift
@@ -230,8 +230,8 @@ joint_candidates['adopted_redshift_error_used'] = np.where(
     joint_candidates.one_arcsecond_redshift_error_used,
     joint_candidates.imaging_redshift_error_used)
 joint_candidates['redshift_treatment'] = np.where(
-    joint_candidates.redshift_catalogue.str.contains('quaia', case=False, na=False),
-    'Quaia_Gaussian_redshift_average', 'fixed_spectroscopic_redshift')
+    joint_candidates.adopted_redshift_error_used.gt(0),
+    'Gaussian_photometric_redshift_average', 'fixed_spectroscopic_redshift')
 primary_coordinates = SkyCoord(
     joint_candidates.primary_ra_deg.to_numpy() * u.deg,
     joint_candidates.primary_dec_deg.to_numpy() * u.deg

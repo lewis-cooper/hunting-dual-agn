@@ -402,7 +402,7 @@ fig.legend(
 fig.subplots_adjust(left=0.1, right=0.88, bottom=0.22, top=0.96, wspace=0.1)
 save_paper_figure(fig, 'resolved_colour_redshift')
 plt.close("all")
-print(f'Original-subset colour diagnostic, before secondary PM and visual exclusions: log_r_per_unit_z >= {resolved_colour_log_r_minimum:.2f}; {len(resolved_colour_rows)}/{len(plot_rows)} scored systems retained.')
+print(f'Original-subset colour diagnostic, before secondary PM selection: log_r_per_unit_z >= {resolved_colour_log_r_minimum:.2f}; {len(resolved_colour_rows)}/{len(plot_rows)} scored systems retained.')
 
 
 # Source cell resolved-log-r-threshold-diagnostics

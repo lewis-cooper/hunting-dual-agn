@@ -13,7 +13,7 @@ from one_arcsecond import score_resolved_candidates, join_resolved_model_scores
 configure_dustmaps()
 models = {name: UnifiedPSFModel.load(path) for name, path in MODEL_BUNDLES.items()}
 systems = pd.read_csv(
-    ONE_ROOT / 'scoring_input_audit_712.csv',
+    ONE_ROOT / 'scoring_inputs.csv',
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )

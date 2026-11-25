@@ -45,7 +45,7 @@ def source_paths(config):
     inputs = config['input_directory']
     imaging_inputs = config['imaging_input_directory']
     return [products/'one_arcsecond_scores.csv', products/'imaging_scores.csv',
-        products/'threshold_calibration.json', inputs/'one_arcsecond_components.fits',
+        products/'threshold_calibration.json', config['vetting_work_directory']/'one_arcsecond_inputs/one_arcsecond_components.fits',
         imaging_inputs/'imaging_components.fits', imaging_inputs/'imaging_tractor.fits',
         config['vetting_work_directory']/'imaging/labelled_systems_audit.csv',
         config['master_catalogue'], config['quaia_catalogue']]
@@ -80,7 +80,7 @@ def prepare_runtime(config):
             '--imaging-input-root', str(config['imaging_input_directory']),
             '--output', str(prepared)]
         subprocess.run(command, cwd=ROOT, check=True)
-        modules = ['one_arcsecond.py', 'photometry.py', 'redshift_uncertainty.py', 'score_selection.py']
+        modules = ['one_arcsecond.py', 'photometry.py', 'redshift_uncertainty.py', 'redshift_inputs.py', 'score_selection.py']
         version = {name: file_hash(ROOT/name) for name in modules}
         calibration = config['products_directory']/'threshold_calibration.json'
         version['calibration_sha256'] = file_hash(calibration)

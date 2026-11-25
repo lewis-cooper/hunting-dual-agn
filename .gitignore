@@ -24,3 +24,10 @@ chance_alignment.local.json
 imaging_search.local.json
 control_data/
 chance_alignment_control_data.zip
+one_arcsecond_search.local.json
+
+measurement_inputs.local.json
+quasar_catalogue.local.json
+wsdb_inputs.local.json
+.pgpass
+.pg_service.conf

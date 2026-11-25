@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from redshift_inputs import photometric_redshifts, redshift_errors
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 MODEL_POINTERS = {'magdep': '20261005_magdep_qlf', 'magindep': '20261005_magindep_qlf'}
@@ -10,6 +11,10 @@ SCORE_FIELDS = ['eligible', 'status', 'decision_reason', 'log_r_per_unit_z', 'p_
 def attach_quaia_redshift_errors(candidates, reference):
     """Join the published uncertainty by the source supplying the adopted z."""
     candidates = candidates.copy()
+    if 'redshift_kind' in candidates:
+        candidates['adopted_redshift_error'] = redshift_errors(candidates, 'adopted_redshift_error', 'adopted_redshift_catalogue', 'redshift_kind')
+        candidates['redshift_error_source_id'] = candidates.source_id.astype('string').where(candidates.redshift_kind.eq('photometric'))
+        return candidates
     lookup = reference.copy()
     lookup['source_id'] = lookup.source_id.astype('string')
     if not lookup.source_id.is_unique:
@@ -45,6 +50,8 @@ def prepare_component_photometry(candidates, components, tractor):
         'adopted_redshift_error',
         'redshift_error_source_id'
     ]
+    if 'redshift_kind' in candidates:
+        metadata.append('redshift_kind')
     selected = selected.merge(candidates[metadata], on='qso_parent_index', validate='many_to_one')
     component_coordinates = SkyCoord(selected.component_ra.to_numpy() * u.deg, selected.component_dec.to_numpy() * u.deg)
     role_matches = {}
@@ -58,7 +65,7 @@ def prepare_component_photometry(candidates, components, tractor):
     selected['component_role'] = np.where(role_matches['primary'], 'primary', 'secondary')
     selected['candidate_id'] = selected.physical_system_key + ':' + selected.component_role
     selected['redshift_scope'] = np.where(
-        selected.adopted_redshift_catalogue.str.lower().str.contains('quaia'),
+        photometric_redshifts(selected, 'adopted_redshift_catalogue', 'redshift_kind'),
         'Quaia_Gaussian_redshift_average_exploratory',
         'spectroscopic'
     )

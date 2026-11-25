@@ -11,7 +11,7 @@ from score_selection import (build_secondary_pm_flags, eligible_model_scores,
                              has_two_distinct_gaia_sources, read_either_model_threshold)
 log_r_per_unit_z_threshold = read_either_model_threshold(THRESHOLD_CALIBRATION_PATH)
 systems = pd.read_csv(
-    ONE_ROOT / 'scoring_input_audit_712.csv',
+    ONE_ROOT / 'scoring_inputs.csv',
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )
@@ -34,11 +34,6 @@ one_arcsecond = evidence.merge(
     validate='one_to_one'
 )
 one_arcsecond = one_arcsecond.copy()
-visual_rejections = pd.read_csv(VISUAL_REJECTIONS_PATH, dtype='string').fillna('')
-rejected = visual_rejections.loc[visual_rejections.one_arcsecond_qso_group_id.ne('')].set_index('one_arcsecond_qso_group_id')
-visual_inspection_key = one_arcsecond.get('historical_qso_group_id', one_arcsecond.qso_group_id)
-one_arcsecond['visual_inspection_rejected'] = visual_inspection_key.astype('string').isin(rejected.index)
-one_arcsecond['visual_inspection_rejection_reason'] = visual_inspection_key.map(rejected.reason).fillna('')
 two_gaia = has_two_distinct_gaia_sources(one_arcsecond.primary_component_gaia_source_id,
                                         one_arcsecond.secondary_component_gaia_source_id)
 pm_flags = build_secondary_pm_flags(one_arcsecond.secondary_pm_significance,
@@ -49,8 +44,8 @@ unresolved_route = one_arcsecond.scoring_route.eq('unresolved')
 unresolved_finite_both = unresolved_route & np.isfinite(one_arcsecond.blend_log_bf_qq_qs_magdep) & np.isfinite(one_arcsecond.blend_log_bf_qq_qs_magindep)
 qq_either = unresolved_finite_both & (one_arcsecond.blend_log_bf_qq_qs_magdep.gt(0) | one_arcsecond.blend_log_bf_qq_qs_magindep.gt(0))
 qq_both = unresolved_finite_both & (one_arcsecond.blend_log_bf_qq_qs_magdep.gt(0) & one_arcsecond.blend_log_bf_qq_qs_magindep.gt(0))
-qq_either &= one_arcsecond.secondary_pm_pass & ~one_arcsecond.visual_inspection_rejected
-qq_both &= one_arcsecond.secondary_pm_pass & ~one_arcsecond.visual_inspection_rejected
+qq_either &= one_arcsecond.secondary_pm_pass
+qq_both &= one_arcsecond.secondary_pm_pass
 one_arcsecond['selected_by_unresolved'] = qq_either
 one_arcsecond['qq_both_models'] = qq_both
 
@@ -114,9 +109,6 @@ resolved_magindep &= one_arcsecond.secondary_pm_pass
 one_arcsecond_count_rows.append(model_counts(
     'Resolved', 'Secondary Gaia PM significance < 3 (missing retained)',
     resolved_magdep, resolved_magindep))
-resolved_magdep &= ~one_arcsecond.visual_inspection_rejected
-resolved_magindep &= ~one_arcsecond.visual_inspection_rejected
-one_arcsecond_count_rows.append(model_counts('Resolved', 'Visual inspection', resolved_magdep, resolved_magindep))
 one_arcsecond['selected_by_resolved_magdep'] = resolved_magdep
 one_arcsecond['selected_by_resolved_magindep'] = resolved_magindep
 resolved_selected = resolved_magdep | resolved_magindep
@@ -149,9 +141,6 @@ blend_magindep &= one_arcsecond.secondary_pm_pass
 one_arcsecond_count_rows.append(model_counts(
     'Unresolved', 'Secondary Gaia PM significance < 3 (missing retained)',
     blend_magdep, blend_magindep))
-blend_magdep &= ~one_arcsecond.visual_inspection_rejected
-blend_magindep &= ~one_arcsecond.visual_inspection_rejected
-one_arcsecond_count_rows.append(model_counts('Unresolved', 'Visual inspection', blend_magdep, blend_magindep))
 assert (blend_magdep | blend_magindep).equals(qq_either), 'Unresolved cutflow and adopted selection differ'
 one_arcsecond_cutflow = pd.DataFrame(one_arcsecond_count_rows)
 print('Unscoreable parent systems:', (~(resolved_route | unresolved_route)).sum())

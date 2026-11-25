@@ -173,10 +173,10 @@ class ImagingSearchTests(unittest.TestCase):
             self.assertTrue(all((root/'work/inputs'/name).is_file() for name in GENERATED_INPUTS))
 
     def test_full_runner_searches_before_prepared_input_validation(self):
-        sequence=commands('vetting',imaging_search_config=Path('search.json'))
+        sequence=commands('vetting',imaging_search_config=Path('search.json'),data_source='local')
         search=next(i for i,command in enumerate(sequence) if 'scripts.search_imaging_candidates' in command)
         prepared=next(i for i,command in enumerate(sequence)
-                      if command[-1]=='verification/verify_input_contracts.py')
+                      if 'verification/verify_input_contracts.py' in command and '--external-only' not in command)
         self.assertLess(search,prepared)
 
 

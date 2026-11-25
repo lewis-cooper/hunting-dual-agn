@@ -50,6 +50,7 @@ def component_scores(frame, models, threshold, role='secondary',skip_known_failu
     model_input['qso_group_id']=frame.trial_id
     model_input['primary_qso_z']=frame.redshift
     model_input['primary_qso_zerr']=frame.redshift_error
+    model_input['primary_qso_redshift_kind']=np.where(frame.redshift_error.gt(0),'photometric','spectroscopic')
     model_input['primary_qso_catalog']=np.where(
         frame.redshift_catalogue.str.contains('quaia',case=False,na=False),'QUAIA_G20_V1','SPECTROSCOPIC')
     model_input['primary_component_gaia_source_id']=frame.target_id

@@ -1,0 +1,13 @@
+{
+  "catalogue": "data/inputs/my_quasars.csv",
+  "catalogue_label": "MyQuasarCatalogue",
+  "redshift_kind": "spectroscopic",
+  "columns": {
+    "object_id": "OBJECT_ID",
+    "ra": "RA",
+    "dec": "DEC",
+    "redshift": "Z"
+  },
+  "gaia_catalogue": "data/inputs/native/gaia.fits",
+  "gaia_coverage": "data/inputs/my_quasars_gaia_coverage.csv"
+}

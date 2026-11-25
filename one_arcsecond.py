@@ -4,6 +4,7 @@ import pandas as pd
 from astropy.io import fits
 from settings import IDENTIFIER_DTYPES, MATCH_HALF_WIDTH_KMS, CLOSE_SEPARATION_ARCSEC
 from photometry import RESOLVED_POLICY
+from redshift_inputs import photometric_redshifts, redshift_errors
 from redshift_uncertainty import score_components_with_redshift_errors
 MODEL_POINTERS = {'magdep': '20261005_magdep_qlf', 'magindep': '20261005_magindep_qlf'}
 QUAIA_RELEASE = '1.0.0'
@@ -59,10 +60,9 @@ def score_resolved_candidates(candidates, models):
             valid_measurement &= inverse_variance > 0
             variance = np.divide(1.0, inverse_variance, out=np.full_like(flux, np.inf), where=valid_measurement)
             photometry = Photometry(np.where(valid_measurement, flux, np.nan), variance, bands)
-            redshift_errors = group.primary_qso_zerr.fillna(0.0).to_numpy(float)
-            redshift_errors = np.where(group.primary_qso_catalog.eq('QUAIA_G20_V1'), redshift_errors, 0.0)
+            component_redshift_errors = redshift_errors(group, 'primary_qso_zerr', 'primary_qso_catalog', 'primary_qso_redshift_kind').to_numpy(float)
             scores, decision = score_components_with_redshift_errors(
-                model, photometry, redshift_errors,
+                model, photometry, component_redshift_errors,
                 ra_deg=group.secondary_component_ra.to_numpy(float),
                 dec_deg=group.secondary_component_dec.to_numpy(float),
                 z_primary=group.primary_qso_z.to_numpy(float),
@@ -82,7 +82,7 @@ def score_resolved_candidates(candidates, models):
                 reason = str(decision['reason'][index])
                 row.update(
                     qso_group_id=group_id,
-                    primary_redshift_error_used=float(redshift_errors[index]),
+                    primary_redshift_error_used=float(component_redshift_errors[index]),
                     model=model_name,
                     eligible=eligible,
                     decision_reason=reason,
@@ -101,6 +101,10 @@ def score_resolved_candidates(candidates, models):
                 for field in ('ref_mag', 'qso_ood_sigma', 'dz_match_eff'):
                     row.setdefault(field, np.nan)
                 score_rows.append(row)
+    if not score_rows:
+        return pd.DataFrame(columns=['model', 'qso_group_id', 'eligible', 'decision_reason',
+            'status', 'log_r_per_unit_z', 'p_sameq', 'p_quasar', 'quality_flags',
+            'qso_support_percentile', 'ref_mag', 'qso_ood_sigma', 'dz_match_eff'])
     scored = pd.DataFrame(score_rows)
     return scored
 
@@ -155,7 +159,7 @@ def combine_current_evidence(systems, resolved_all, blend_ranked):
             continue
         combined[f'blend_{field}'] = combined.qso_group_id.map(blend_lookup[field])
     combined['redshift_scope'] = np.where(
-        combined.primary_qso_catalog.isin(['QUAIA_G20_V1', 'QUAIA']),
+        photometric_redshifts(systems, 'primary_qso_catalog', 'primary_qso_redshift_kind'),
         'Quaia_Gaussian_redshift_average_exploratory',
         'spectroscopic'
     )
@@ -207,7 +211,11 @@ def build_redshift_lookup(systems: pd.DataFrame, original_parent: pd.DataFrame, 
     })
     lookup['redshift_source_doi'] = ''
     lookup['redshift_source_file_md5'] = ''
+    if 'primary_qso_redshift_kind' in original_parent:
+        lookup['primary_qso_redshift_kind'] = lookup.qso_group_id.map(parent.primary_qso_redshift_kind)
     quaia_mask = lookup.primary_qso_catalog.eq('QUAIA_G20_V1')
+    if 'primary_qso_redshift_kind' in lookup:
+        quaia_mask &= False
     source_ids = lookup.loc[quaia_mask, 'primary_component_gaia_source_id']
     with fits.open(quaia_path, memmap=True) as hdul:
         table = hdul[1].data
@@ -219,7 +227,8 @@ def build_redshift_lookup(systems: pd.DataFrame, original_parent: pd.DataFrame, 
         }).set_index('source_id')
     lookup.loc[quaia_mask, 'primary_qso_z'] = source_ids.map(reference.redshift)
     lookup.loc[quaia_mask, 'primary_qso_zerr'] = source_ids.map(reference.redshift_error)
-    quaia_errors = lookup.loc[quaia_mask, 'primary_qso_zerr']
+    photometric = photometric_redshifts(lookup, 'primary_qso_catalog', 'primary_qso_redshift_kind')
+    quaia_errors = lookup.loc[photometric, 'primary_qso_zerr']
     if not np.isfinite(quaia_errors).all() or quaia_errors.lt(0).any():
         raise ValueError('Every adopted Quaia redshift requires a published finite error')
     lookup.loc[quaia_mask, 'redshift_source_doi'] = QUAIA_DOI

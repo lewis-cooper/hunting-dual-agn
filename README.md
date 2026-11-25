@@ -1,323 +1,217 @@
-# Close-separation quasar candidate search and vetting
+# Hunting Dual AGN
 
-Scripts for imaging candidate discovery, photometric QSO scoring, candidate vetting, and random-control tests. The imaging workflow starts from a Gaia-linked quasar master and local survey catalogues, finds the initial pairs, and generates its own component-association tables. The one-arcsecond route starts from the prepared 712-system input. Survey data are supplied separately; score/flag exports, cut tables, control caches and diagnostic figures are generated locally and excluded from Git.
+Discover close quasar pairs, score their photometry, apply the candidate selection,
+remove confirmed literature contaminants and write a final catalogue. The main
+entry point is `scripts/run_analysis.py`. WSDB is the default catalogue source;
+users without access can supply equivalent local survey extracts.
 
-The core selection uses either the magnitude-dependent or magnitude-independent model, propagates Quaia redshift uncertainties, and applies the paper's PM and DCR rules.
+The starting input is a quasar catalogue. The workflow calculates Gaia neighbour
+counts, discovers both search samples, builds component photometry and resolution
+classes, calibrates the score threshold and measures image morphology. It does
+not need a prepared 712-system list, candidate scores or morphology measurements.
+Counts are computed for the supplied population. The automatic output precedes
+visual inspection, which is performed outside this workflow.
 
-## Core scripts
+## Install
 
-| Task | Script |
-| --- | --- |
-| Find initial imaging pairs and build component associations | [`search_imaging_candidates.py`](scripts/search_imaging_candidates.py) |
-| Score resolved companions | [`score_one_arcsecond_resolved.py`](scripts/score_one_arcsecond_resolved.py) |
-| Score blended systems | [`score_one_arcsecond_unresolved.py`](scripts/score_one_arcsecond_unresolved.py) |
-| Score imaging components | [`score_imaging_components.py`](scripts/score_imaging_components.py) |
-| Calibrate the shared resolved-score threshold | [`calibrate_resolved_threshold.py`](scripts/calibrate_resolved_threshold.py) |
-| Build one-arcsecond selections and cut tables | [`select_one_arcsecond_candidates.py`](scripts/select_one_arcsecond_candidates.py) |
-| Build imaging selections and cut table | [`select_imaging_candidates.py`](scripts/select_imaging_candidates.py) |
-| Crossmatch published systems and remove confirmed contaminants | [`crossmatch_literature.py`](scripts/crossmatch_literature.py) |
-| Plot final-candidate separation versus redshift | [`plot_candidate_separation_redshift.py`](scripts/plot_candidate_separation_redshift.py) |
-
-Other modules prepare local input tables, combine the selected searches and
-produce score, colour and separation diagnostics. Shared model interfaces,
-photometry handling and selection rules are in the root Python modules.
-
-## Products
-
-Running the workflow produces exactly six files in `products/`. There is one final candidate catalogue;
-the two score audits contain every assessed input, including rejected systems.
-
-| Product | Purpose |
-| --- | --- |
-| `final_candidates.csv` | The unique combined candidate catalogue after confirmed literature contaminant removal, including literature flags and citations. |
-| `one_arcsecond_scores.csv` | Scores, route assignments and flags for all 712 one-arcsecond inputs. |
-| `imaging_scores.csv` | Both-component scores and selection flags for the 1,600 imaging systems passed to scoring. |
-| `one_arcsecond_cutflow.csv` | Cumulative counts for the resolved and unresolved routes. |
-| `imaging_cutflow.csv` | Cumulative counts for the one-Gaia and two-Gaia imaging tiers. |
-| `threshold_calibration.json` | The calibrated threshold and fit summary. |
-
-These files are written under `PAPER1_OUTPUT_ROOT`, which defaults to
-`products/`. Intermediate preparation tables, per-model calculations and plot
-support data are written to a separate ignored working directory, defaulting
-to `products_work/`. Set `PAPER1_WORK_ROOT` to override it. Working files are
-not part of the distributed products and can be regenerated from the external
-inputs. Route-specific selected-candidate lists are not written.
-
-Read Gaia and candidate identifiers as strings. Missing scores have status or
-reason fields and must not be interpreted as measured zero scores.
-
-The reference input catalogues produce 443 unique systems before the literature stage:
-100 resolved one-arcsecond, 44 unresolved one-arcsecond and 334 imaging systems,
-with 35 shared systems. The bundled reference snapshot identifies 32 confirmed
-contaminants, leaving **411 final candidates**: 88 resolved, 41 unresolved and
-310 imaging systems, with 28 shared. Seven final candidates have verified
-matches to confirmed dual AGN. Uncertain classifications are retained and flagged.
-
-## Literature comparison and exclusions
-
-Two curated reference CSVs are included under [`data/literature`](data/literature/README.md):
-[`known_binaries.csv`](data/literature/known_binaries.csv) and
-[`known_lenses_contaminants.csv`](data/literature/known_lenses_contaminants.csv).
-They contain published positions, redshifts, separations, classifications and
-publication provenance. Multiple image pairs or papers can describe the same
-system; match counts deduplicate by candidate ID.
-
-The automatic literature stage follows cross-pipeline deduplication. Confirmed
-dual references use $0\leq z\leq4$ and $0<\theta\leq1.5''$. A positional finder
-radius of $1''$ retrieves associations; redshift is not a matching criterion.
-Pair identity requires two distinct Gaia IDs, agreement of both component
-positions, or documented published pair geometry. A finder association alone
-does not remove a candidate. The reference guide explains the astrometric
-tolerances and qualified classifications, including the retained likely lens
-J0823+2418.
-
-Only verified, confirmed lenses, quasar–star/galaxy pairs, stellar pairs and
-published projected quasar pairs are removed. Uncertain or conflicting
-classifications remain flagged in the final catalogue. This is a literature
-classification audit, not a measurement of sample completeness or purity.
-
-To rerun this part after the selection stages:
-
-```sh
-python -m scripts.combine_candidate_catalogues
-python -m scripts.crossmatch_literature
-```
-
-The single final catalogue stays in `products/final_candidates.csv`. Both
-all-input score audits gain literature flags and `literature_final_pass`; their
-original selection flags and scores retain their pre-literature meaning. Both
-cut tables gain a final exclusion row, including both scoring-model variants.
-The combined pre-literature table and detailed associations, candidate audit
-and summary are kept in the ignored working directory under `PAPER1_WORK_ROOT`.
-The literature stage runs offline from the two bundled CSVs.
-
-## Selection rules
-
-Resolved companions pass if an eligible model gives
-$\ln\mathcal R\geq-6.81$. Imaging requires both components to pass under the
-same model variant. Blended candidates require finite QQ/QS Bayes factors in
-both variants and $\ln B_{\mathrm{QQ,QS}}>0$ in at least one.
-
-The reference threshold is calibrated using 109 systems with finite score,
-redshift and secondary $S_{\mathrm{PM}}<70$, before final PM selection.
-The fitted mixture populations are calibration proxies rather than measured
-catalogue purity or completeness.
-
-All two-Gaia routes require secondary $S_{\mathrm{PM}}<3$ when finite. Missing
-secondary PM is retained and flagged. Imaging also requires finite primary
-$S_{\mathrm{PM}}<3$. The pair-DCR angle cut, finite and $>20^\circ$, is applied
-once upstream to one-Gaia imaging systems. Two-Gaia systems are exempt.
-
-The imaging selection retains $R_\perp\geq1.05$ using an **externally supplied
-measurements table**. This release contains no image-profile measurement or
-plotting code, cutout images or profile-building products. The required table
-schema is documented in the [input guide](data/README.md).
-
-[`redshift_uncertainty.py`](redshift_uncertainty.py) uses the published Quaia
-per-object errors through `RedshiftMatch` for component scoring, retaining the
-2000 km/s half-width and central-redshift support test. Blended Quaia systems
-average QQ and QS likelihoods separately over nine Gaussian-weighted nodes,
-clipped to [0.15, 4.35], retaining clipped duplicates and the finite-node
-intersection. DESI and SDSS receive zero additional redshift uncertainty.
-
-## Install dependencies
-
-Use Python 3.11 or newer; the reference workflow was tested with Python 3.13.5.
-From the repository root:
+Use Python 3.11 or newer. From the repository root:
 
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt -r requirements-wsdb.txt
 git clone https://github.com/vasilybelokurov/qso_p_color.git ../qso_p_color
 git -C ../qso_p_color checkout dbc392623d27e22744d5224f9f1a3fd52f6230a8
 python -m pip install -e ../qso_p_color
 export QSO_PCOLOR_PACKAGE_ROOT="$(cd ../qso_p_color && pwd)"
 ```
 
-The pinned model package includes `20261005_magdep_qlf` and
-`20261005_magindep_qlf` under `models/multisurvey_psf/`.
+The pinned package contains the magnitude-dependent and magnitude-independent
+model bundles under `models/multisurvey_psf/`. Download the two SFD maps from the
+[SFD archive](https://doi.org/10.7910/DVN/EWCNL5), put them in an `sfd/` directory,
+and set `QSO_PCOLOR_DUSTMAPS_DIR` to its parent directory. Model/dust prerequisites
+are checked before candidate data acquisition.
 
-For scoring, download `SFD_dust_4096_ngp.fits` and `SFD_dust_4096_sgp.fits` from
-the [SFD dust-map archive](https://doi.org/10.7910/DVN/EWCNL5), place both in an
-`sfd/` subdirectory, and set `QSO_PCOLOR_DUSTMAPS_DIR` to its parent directory.
+Local-file users can omit `requirements-wsdb.txt`. No input catalogue, image,
+credential or generated analysis product is included in Git.
 
-## Run with separately supplied data
+## Configure the WSDB run
 
-The code can be inspected without the input catalogues. Executing the analysis
-requires the local files listed in [data/README.md](data/README.md): the
-prepared one-arcsecond inputs, the imaging master and survey measurements,
-and the externally supplied morphology/visual-inspection decisions. The imaging
-search is entirely offline. It reads local Tractor, Gaia and g-band CCD
-catalogues with query-coverage metadata, then rebuilds the tables used by vetting.
-The optional chance-alignment stage queries anonymous public Gaia/Legacy/MAST
-services for its control sources.
+Copy `wsdb_inputs.example.json` to `wsdb_inputs.local.json`. This is the one
+configuration needed for candidate acquisition and analysis. Set its
+`quasar_catalogue.catalogue` path and column map. A generic input needs a unique
+object ID, RA/Dec in degrees and redshift. Specify the redshift kind explicitly;
+photometric redshifts require their uncertainties. Other column names and larger
+catalogues use the same scripts. The [input guide](data/README.md) covers mixed
+catalogues, JSON fields and exact native survey identifiers.
 
-```sh
-export PAPER1_INPUT_ROOT=/path/to/prepared_inputs
-export QSO_PCOLOR_DUSTMAPS_DIR=/path/to/dustmaps
-export PAPER1_IMAGING_MORPHOLOGY_PATH=/path/to/imaging_morphology_measurements.csv
-export PAPER1_VISUAL_REJECTIONS_PATH=/path/to/visual_inspection_rejections.csv
-export PAPER1_OUTPUT_ROOT="$PWD/products_independent"
-export PAPER1_FIGURE_ROOT="$PWD/figures_independent"
-```
+The example retrieves raw records from the following sources:
 
-Copy [`imaging_search.example.json`](imaging_search.example.json) to
-`imaging_search.local.json` and set its local catalogue/coverage paths. Paths
-and glob patterns are resolved relative to the config file. Check availability
-or run just the imaging search without loading the QSO models:
+| Data | Source |
+| --- | --- |
+| Gaia positions, magnitudes and PM measurements | WSDB Gaia DR3 |
+| Tractor component photometry | WSDB Legacy Surveys DR9 |
+| DESI target fallback photometry | WSDB DESI DR1 |
+| PS1, NSC and SkyMapper supplementary photometry | WSDB PS1 DR1, NSC DR2 and SkyMapper DR4 |
+| VHS and AllWISE inventory photometry | WSDB VHS DR5 and AllWISE |
+| SDSS imaging photometry for the inventory | Public SDSS DR17 PhotoObjAll |
+| Ground-based exposure metadata for DCR | Public NOIRLab Data Lab `ls_dr9.ccds_annotated` |
+| Missing r-band morphology images | Legacy Surveys DR9 cutout service |
 
-```sh
-python -m scripts.search_imaging_candidates --config imaging_search.local.json --check-inputs
-python -m scripts.run_analysis --stage imaging-search --resume
-```
+These preserve the catalogue releases and photometry types used by the existing
+analysis: Tractor grz, PS1 Kron, SkyMapper Petrosian and native NSC magnitudes.
+SDSS/VHS/AllWISE inventory measurements are not additional blended-scoring bands.
+Current blended scoring adds PS1, NSC and SkyMapper to the available Tractor
+system photometry. SDSS DR16Q parent identifiers/redshifts are distinct from the
+SDSS DR17 imaging measurements.
 
-To find the initial pairs before Gaia/CCD data are available:
+WSDB connection details come from `WSDB_USER` and `WSDB_PASSWORD`, or an external
+PostgreSQL service/password file. The defaults are host `wsdb.ast.cam.ac.uk` and
+database `wsdb`. Override them with `WSDB_HOST`, `WSDB_PORT`, `WSDB_DATABASE` or
+`WSDB_NAME`. Standard PostgreSQL service/environment settings are also supported.
+Keep credentials outside JSON and source files. Local configuration, raw exports,
+cutouts and analysis outputs are ignored by Git.
 
-```sh
-python -m scripts.search_imaging_candidates --config imaging_search.local.json --stage discover
-```
-
-This writes the discovered pairs and explicit `gaia_query_positions.csv` and
-`ccd_query_positions.csv` request tables under `products_work/imaging_search/`.
-It does not fetch those data. Complete Gaia/CCD inputs and their coverage logs
-are required before the following association and vetting stages can run.
-
-The search resolves overlapping DR9 north/south photometry, ranks the sources
-within 1.5 arcsec of each Gaia parent, validates two positive-flux PSF components,
-and matches each to local Gaia DR3 sources within 0.7 arcsec. The original fixed
-primary assignment uses a redshift-local nearest-Tractor g-r reference with
-the target itself excluded. DCR axes are rebuilt from quality-selected g-band
-CCDs using their WCS, observing times and exposure/noise weights. These steps
-preserve the existing search implementation; the later PM/DCR selection rules
-remain in the vetting stages.
-
-Generated imaging inputs live in `products_work/imaging_search/inputs/`, or
-under the equivalent `PAPER1_WORK_ROOT`. Completed searches can be resumed only
-when the source-file, code, parameter and generated-output hashes agree. The
-master is supplied as an input catalogue; merging the original SDSS/DESI/Quaia
-survey releases into that master is outside this workflow.
-
-Individual stages run with `python -m scripts.MODULE` after their preceding
-stages have produced the required intermediate files. To run the full local
-search and vetting workflow after configuring its external inputs:
+Check WSDB table/column access yourself without exporting catalogue rows:
 
 ```sh
-PAPER1_BLEND_WORKERS=4 sh run_frozen_analysis.sh
+python -m scripts.query_wsdb_inputs --config wsdb_inputs.local.json --check-schema
 ```
 
-This runner checks external inputs, runs the imaging candidate search, validates
-its generated tables, executes scoring/selection and literature exclusions,
-and checks the paper's expected counts. It performs no imaging-data downloads.
-Blended scoring memoizes identical population-prior evaluations in memory using
-the same value-preserving cache as the control scorer. It still calculates every
-system's likelihoods from the supplied photometry. Scoring is CPU intensive. Each
-parallel worker loads its model assets. Set `PAPER1_PYTHON` to choose the
-interpreter. For another sample, invoke the relevant modules and assess its
-results independently of the paper-specific count checks.
+This check connects to WSDB. It does not validate availability of the separate
+public image and exposure services. A successful empty query records an empty
+cone; a failed query stops the acquisition and is never treated as a non-detection.
 
-The full workflow also plots the unique final candidates in projected proper
-separation versus adopted redshift, with Planck18 curves for fixed angular
-separations. To regenerate this figure directly from the final CSV:
+## Run from the quasar catalogue to final candidates
 
 ```sh
-python -m scripts.plot_candidate_separation_redshift
+python -m scripts.run_analysis --stage vetting
 ```
 
-The plot is saved as `figures/joint/separation_redshift.pdf` and `.png` under
-`PAPER1_FIGURE_ROOT`. It uses only `products/final_candidates.csv` under
-`PAPER1_OUTPUT_ROOT`; shared systems are plotted once in their own group.
-Use `--candidates /path/to/final_candidates.csv` and `--figure-dir /path/to/figures`
-to override these paths. It needs no model assets or source catalogues.
+The sequence acquires the configured raw data, discovers both samples, builds
+measurements, scores systems, calibrates the threshold, applies PM/DCR/morphology
+cuts, deduplicates physical systems, applies the literature audit and makes the
+diagnostic figures. At successful completion it prints `Final candidate count`
+and the final CSV path. `sh run_frozen_analysis.sh` invokes the same sequence.
 
-Input catalogues, cutouts and generated outputs are excluded from Git.
-The scripts generate the initial imaging pairs, score audits and final
-catalogue locally from the configured inputs.
-
-## Verification
-
-Focused tests run without the paper's input catalogues:
+Use a separate location for a fresh test:
 
 ```sh
-python -m unittest discover -s verification -p 'test_*.py'
-python verification/verify_redshift_uncertainty.py
+export PAPER1_OUTPUT_ROOT=/path/to/test/products
+export PAPER1_WORK_ROOT=/path/to/test/work
+export PAPER1_FIGURE_ROOT=/path/to/test/figures
+python -m scripts.run_analysis --stage vetting --wsdb-config /path/to/test/wsdb_inputs.local.json
 ```
 
-With external input paths configured, check execution prerequisites using:
+Use `--dry-run` to print the sequence without running it. Add `--resume` after an
+interruption to reuse verified raw query checkpoints. WSDB queries are batched;
+query specifications, source releases, target positions, radii, code and output
+hashes determine reuse. Raw source rows from overlapping batches are deduplicated
+by the measurement builders. Neighbour counts and selection are recalculated;
+there is no forced historical candidate count. Omit `--resume` for fresh queries.
+
+For discovery alone:
 
 ```sh
-python verification/verify_input_contracts.py
+python -m scripts.run_analysis --stage one-arcsecond-search
+python -m scripts.run_analysis --stage imaging-search
 ```
 
-After running the workflow with the paper's input catalogues and measurement
-tables, its score outputs and figures can be checked with:
+The one-arcsecond-only command queries Gaia and computes discovery counts without
+requesting Tractor cutouts or supplementary photometry.
+
+## Local-file alternative
+
+Supply native Gaia, Tractor and multi-survey catalogues, complete query coverage,
+and local image paths using the three local examples. The master adapter computes
+Gaia matches and neighbour counts from the raw sources:
 
 ```sh
-python verification/verify_example_run.py
+python -m scripts.run_analysis --stage vetting --data-source local \
+  --quasar-catalogue-config quasar_catalogue.local.json \
+  --imaging-search-config imaging_search.local.json \
+  --measurement-config measurement_inputs.local.json
 ```
 
-The checks inspect the six products and figures. Detailed calibration-sample
-and blended-likelihood checks also run when their working tables are available;
-otherwise they are reported as skipped. No verification report is added to
-`products/`. Testing supports implementation consistency; scientific
-interpretation requires assessment of the method and source measurements.
+This route has no WSDB connection. Set `morphology_images.download_missing` to
+`false` for a fully offline candidate run. Generated WSDB exports can be shared
+separately where redistribution is permitted and reused through this route.
+The [input guide](data/README.md) explains path relocation and coverage formats.
 
-## Run vetting followed by chance-alignment controls
+## Products and scientific rules
 
-The chance-alignment workflow uses the modules in
-[`chance_alignments/engine`](chance_alignments/engine) for catalogue queries,
-matching, scoring and statistical summaries. An input adapter connects these
-calculations to the sequential vetting workflow.
+There are exactly six files in `products/`, or `PAPER1_OUTPUT_ROOT`:
 
-The literature stage runs before the final-candidate plots. Chance-alignment
-controls continue to use the input populations and scoring rules; they do not
-use the literature-cleaned candidate sample to estimate method false positives.
+| File | Contents |
+| --- | --- |
+| `final_candidates.csv` | Unique combined candidates after confirmed literature contaminant removal |
+| `one_arcsecond_scores.csv` | Scores, eligibility, selection and literature flags for every discovered one-arcsecond input |
+| `imaging_scores.csv` | Component scores and selection/literature flags for assessed imaging systems |
+| `one_arcsecond_cutflow.csv` | Resolved and unresolved cumulative cuts |
+| `imaging_cutflow.csv` | One-Gaia and two-Gaia cumulative cuts |
+| `threshold_calibration.json` | Threshold and calibration summary |
 
-After configuring the imaging search, vetting inputs and model assets above, copy
-[`chance_alignment.example.json`](chance_alignment.example.json) to
-`chance_alignment.local.json`. Set the paths to the full Gaia-linked quasar
-master and published Quaia catalogue described in the [input guide](data/README.md).
-Then run the complete sequence:
+Raw data, query checkpoints, native associations and other intermediates stay
+under `PAPER1_WORK_ROOT`; figures stay under `PAPER1_FIGURE_ROOT`. There is one
+final candidate list. Read source identifiers as strings. Missing measurements
+retain status/quality flags and must not be interpreted as measured zero values.
+
+The selection uses either photometric model. Imaging requires both components
+to pass under the same variant. The resolved threshold is calibrated before
+final PM selection, retaining the calibration-only secondary PM significance
+limit of 70. Two-Gaia systems require secondary PM significance below 3 when
+finite; missing secondary PM is retained and flagged. Imaging also requires
+finite primary PM significance below 3. DCR angle greater than 20 degrees is
+applied once to one-Gaia imaging systems; two-Gaia systems are exempt.
+
+Morphology uses the existing r-band profile-moment calculation and requires
+`R_perp >= 1.05`. Missing images are downloaded only when configured. Their
+coordinates/WCS are checked before measurement, and image provenance is retained.
+Quaia errors propagate through component and blended scoring; spectroscopic
+redshifts receive zero additional redshift uncertainty. The supplied master
+retains its adopted redshift hierarchy.
+
+The two cited reference CSVs in [data/literature](data/literature/README.md) support
+the automatic literature crossmatch. Confirmed dual comparisons retain
+`0 <= z <= 4`, separation at most 1.5 arcsec and a 1-arcsec positional finder.
+Removal requires verified pair identity and a confirmed contaminant
+classification. Uncertain or conflicting classifications remain flagged.
+Visual inspection is not read or applied.
+
+## Chance-alignment controls
+
+Copy `chance_alignment.example.json` to `chance_alignment.local.json` and set its
+full quasar master and published Quaia reference paths. Run the complete sequence,
+including the independent control experiment, with:
 
 ```sh
-python -m scripts.run_analysis --chance-config chance_alignment.local.json --dry-run
-python -m scripts.run_analysis --chance-config chance_alignment.local.json --resume
+python -m scripts.run_analysis --chance-config chance_alignment.local.json
 ```
 
-This runs the offline imaging search, vetting and literature stages first,
-then constructs and scores chance-alignment controls. The latter can fetch
-survey data; use `--stage vetting` for a local-only run. It prepares control
-inputs from the generated vetting tables, samples nested 30,000/60,000 fields,
-fetches survey controls, scores components and blends, and writes the statistical
-report. A fresh run builds its control inputs from the vetting tables and
-separately supplied parent catalogues; saved control data are optional.
-
-To run just the control calculations after vetting:
+The chance-alignment calculations follow candidate vetting and use their existing
+public control downloads. They estimate method false-positive rates from the
+input populations, not contamination within the literature-cleaned final list.
+Their separate workspace contains the results. To run them after candidate vetting:
 
 ```sh
 python -m scripts.run_chance_alignments --config chance_alignment.local.json --resume
 ```
 
-Individual control stages are `prepare`, `fetch`, `components`, `blends`, and
-`report`, in that order. Use `--stage NAME` to run a stage separately. Logs,
-queries and scoring checkpoints are kept under `chance_alignment_work/` by
-default; the combined report is
-`chance_alignment_work/run/paired_60000/RESULTS.md`. The six vetting products
-remain in their existing output directory. Nothing in the control workspace
-is committed to Git.
-
-The controls measure **P(pass | unrelated matched control, known outcome)**.
-They do not estimate contamination of a selected candidate catalogue. One-Gaia
-imaging retains the empirical DCR survival factor from the real cut flow;
-it is not a direct DCR-angle measurement on the re-paired controls. Missing
-outcomes and repeated source identities are retained in the statistical analysis.
-See the [control workflow guide](chance_alignments/README.md) for details.
-
-For an offline replay using separately supplied saved control data:
+## Verification
 
 ```sh
-python -m scripts.run_chance_alignments --replay-data /path/to/control_data --verify-reference
+python -m unittest discover -s verification -p 'test_*.py'
+python verification/verify_redshift_uncertainty.py
+python verification/verify_input_contracts.py --models-only
 ```
 
-This recalculates the rates, uncertainty and figures without survey queries
-or model evaluation. The saved control data are optional and excluded from Git.
+Tests use local fixtures and mocked acquisition; they do not connect to WSDB or
+perform a full survey run. After running the analysis, inspect its consistency:
+
+```sh
+python verification/verify_example_run.py
+```
+
+Automated tests establish implementation behavior. A complete run on the supplied
+survey data is required to verify the actual candidate count. A replacement
+master or survey release can change discovery membership, calibration and counts.

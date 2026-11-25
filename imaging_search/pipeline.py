@@ -84,13 +84,19 @@ def associate(config, root, summary):
             labelled[name] = channel_lookup.loc[parent_indices,name].to_numpy()
     labelled_frame = decoded_frame(labelled)
     labelled_frame['source_id'] = labelled_frame.source_id.astype('string')
-    quaia = read_frame(config['quaia_catalogue'],['source_id','redshift_quaia','redshift_quaia_err'])
+    if config.get('quaia_catalogue'):
+        quaia = read_frame(config['quaia_catalogue'],['source_id','redshift_quaia','redshift_quaia_err'])
+    else:
+        quaia = pd.DataFrame({'source_id':pd.Series(dtype='string'),
+            'redshift_quaia':pd.Series(dtype=float), 'redshift_quaia_err':pd.Series(dtype=float)})
     quaia['source_id'] = quaia.source_id.astype('string')
     if not quaia.source_id.is_unique:
         raise ValueError('Quaia source_id must be unique')
     quaia = quaia.loc[quaia.source_id.isin(labelled_frame.source_id)].copy()
     lookup = quaia.set_index('source_id')
     uses_quaia = labelled_frame.adopted_redshift_catalogue.str.contains('quaia',case=False,na=False)
+    if 'redshift_kind' in labelled_frame:
+        uses_quaia &= False
     values = labelled_frame.source_id.map(lookup.redshift_quaia)
     errors = labelled_frame.source_id.map(lookup.redshift_quaia_err)
     consistent = np.isfinite(errors) & errors.ge(0) & np.isclose(labelled_frame.adopted_redshift,values,rtol=0,atol=1e-12)

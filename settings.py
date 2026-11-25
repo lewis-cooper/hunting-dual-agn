@@ -8,6 +8,9 @@ OUTPUT_ROOT = Path(os.environ.get('PAPER1_OUTPUT_ROOT', ROOT / 'products')).expa
 FIGURE_ROOT = Path(os.environ.get('PAPER1_FIGURE_ROOT', ROOT / 'figures')).expanduser()
 WORK_ROOT = Path(os.environ.get(
     'PAPER1_WORK_ROOT', OUTPUT_ROOT.parent / f'{OUTPUT_ROOT.name}_work')).expanduser()
+ONE_ARCSECOND_SEARCH_ROOT = WORK_ROOT / 'one_arcsecond_search'
+ONE_ARCSECOND_PARENT_PATH = ONE_ARCSECOND_SEARCH_ROOT / 'discovered_parent.csv'
+ONE_INPUT_ROOT = WORK_ROOT / 'one_arcsecond_inputs'
 IMAGING_SEARCH_ROOT = WORK_ROOT / 'imaging_search'
 IMAGING_INPUT_ROOT = IMAGING_SEARCH_ROOT / 'inputs'
 FINAL_CANDIDATES_PATH = OUTPUT_ROOT / 'final_candidates.csv'
@@ -19,10 +22,7 @@ IMAGING_SCORES_PATH = OUTPUT_ROOT / 'imaging_scores.csv'
 ONE_ARCSECOND_CUTFLOW_PATH = OUTPUT_ROOT / 'one_arcsecond_cutflow.csv'
 IMAGING_CUTFLOW_PATH = OUTPUT_ROOT / 'imaging_cutflow.csv'
 THRESHOLD_CALIBRATION_PATH = OUTPUT_ROOT / 'threshold_calibration.json'
-IMAGING_MORPHOLOGY_PATH = Path(os.environ.get(
-    'PAPER1_IMAGING_MORPHOLOGY_PATH', INPUT_ROOT / 'imaging_morphology_measurements.csv')).expanduser()
-VISUAL_REJECTIONS_PATH = Path(os.environ.get(
-    'PAPER1_VISUAL_REJECTIONS_PATH', INPUT_ROOT / 'visual_inspection_rejections.csv')).expanduser()
+IMAGING_MORPHOLOGY_PATH = WORK_ROOT / 'imaging/morphology_measurements.csv'
 PACKAGE_ROOT = Path(os.environ.get('QSO_PCOLOR_PACKAGE_ROOT', ROOT / '../qso_p_color')).expanduser()
 DUSTMAP_ROOT = Path(os.environ.get('QSO_PCOLOR_DUSTMAPS_DIR', INPUT_ROOT / 'dustmaps')).expanduser()
 MODEL_ROOT = Path(os.environ.get('PAPER1_MODEL_ROOT', PACKAGE_ROOT / 'models/multisurvey_psf')).expanduser()
@@ -45,32 +45,32 @@ IDENTIFIER_DTYPES = {name: 'string' for name in (
 
 survey_products = {
     'sdss': {
-        'path': INPUT_ROOT / 'sdss_measurements.csv',
+        'path': ONE_INPUT_ROOT / 'sdss_measurements.csv',
         'bands': {band: (f'{band}mag', f'{band}mag_err') for band in 'ugriz'},
         'source_flag': 'passes_sdss_imaging_match'
     },
     'allwise': {
-        'path': INPUT_ROOT / 'allwise_measurements.csv',
+        'path': ONE_INPUT_ROOT / 'allwise_measurements.csv',
         'bands': {band: (f'allwise_{band}mpro', f'allwise_{band}sigmpro') for band in ('w1', 'w2')},
         'source_flag': 'wise_w1_minus_w2_photometry_quality'
     },
     'ps1': {
-        'path': INPUT_ROOT / 'ps1_measurements.csv',
+        'path': ONE_INPUT_ROOT / 'ps1_measurements.csv',
         'bands': {band: (f'ps1_{band}kronmag', f'ps1_{band}kronmagerr') for band in 'grizy'},
         'source_flag': 'ps1_source_matched'
     },
     'skymapper': {
-        'path': INPUT_ROOT / 'skymapper_measurements.csv',
+        'path': ONE_INPUT_ROOT / 'skymapper_measurements.csv',
         'bands': {band: (f'skymapper_{band}_petro', f'skymapper_e_{band}_petro') for band in 'uvgriz'},
         'source_flag': 'skymapper_source_matched'
     },
     'nsc': {
-        'path': INPUT_ROOT / 'nsc_measurements.csv',
+        'path': ONE_INPUT_ROOT / 'nsc_measurements.csv',
         'bands': {band: (f'nsc_{band}mag', f'nsc_{band}err') for band in ('u', 'g', 'r', 'i', 'z', 'y', 'vr')},
         'source_flag': 'nsc_source_matched'
     },
     'vhs': {
-        'path': INPUT_ROOT / 'vhs_measurements.csv',
+        'path': ONE_INPUT_ROOT / 'vhs_measurements.csv',
         'bands': {band: (f'vhs_{band}apermag3', f'vhs_{band}apermag3err') for band in ('y', 'j', 'h', 'ks')},
         'source_flag': 'vhs_source_matched'
     }

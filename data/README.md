@@ -1,168 +1,181 @@
-# Separately supplied analysis inputs
+# Input data and generated measurements
 
-Survey catalogues, visual-inspection decisions and image data are not included
-in this release. The one-arcsecond route operates on prepared tables. The
-imaging route finds its initial pairs from a supplied Gaia-linked quasar master
-and local survey measurements. Set `PAPER1_INPUT_ROOT` to a directory containing
-the one-arcsecond and other external vetting inputs below.
-This directory is ignored by Git when placed at `data/inputs/`.
+The default workflow starts with a supplied quasar catalogue and acquires raw
+survey records through the sources in `wsdb_inputs.local.json`. One configuration
+contains the master column map, WSDB sources, the original public SDSS/exposure
+sources and image-download settings. It builds all analysis-specific tables.
 
-The two small, cited literature reference snapshots in
-[`literature/`](literature/README.md) are included in the repository and are
-separate from these external survey inputs.
+Positions are ICRS degrees. Query radii are arcseconds unless a name explicitly
+ends in `_deg`. Tractor fluxes are nanomaggies and inverse variances are
+nanomaggies^-2. Preserve identifiers as strings or native integer FITS columns;
+never convert a large Gaia/DESI ID through floating point.
 
-## Catalogue and photometry files
+## Quasar catalogue
 
-| Files | Role and keys |
+The inline `quasar_catalogue` object in `wsdb_inputs.example.json` supports CSV
+and FITS input and maps canonical fields to native columns:
+
+| Field | Meaning |
 | --- | --- |
-| `original_parent_712.csv`, `eligibility_audit_712.csv`, `secondary_measurements_324.csv` | The 712 parent systems, eligibility measurements and 324-entry original resolved subset. Join on exact `qso_group_id`. |
-| `one_arcsecond_resolution.csv`, `one_arcsecond_components.fits`, `one_arcsecond_tractor.csv`, `desi_target_photometry.csv` | Resolution assignments, component morphology, Tractor measurements and DESI fallback photometry. Tractor identity is `release`, `brickid`, `objid`. |
-| `quaia_712_reference.fits` | Published Quaia `source_id`, `redshift_quaia` and `redshift_quaia_err` for the adopted one-arcsecond parent redshifts. |
-| `ps1_measurements.csv`, `nsc_measurements.csv`, `skymapper_measurements.csv` | Blended-system photometry with native magnitudes, errors and quality flags. Join by `qso_group_id`. |
-| `sdss_measurements.csv`, `allwise_measurements.csv`, `vhs_measurements.csv` | Inputs to the photometry inventory stage. |
+| `object_id` | Unique, nonmissing input-row identity used for query coverage |
+| `ra`, `dec` | Quasar coordinates in degrees |
+| `redshift` | Adopted system redshift |
+| `redshift_error` | Required for photometric redshifts; finite and nonnegative |
+| `redshift_kind` | Optional per-row `spectroscopic` or `photometric` classification |
+| `catalogue_label` | Optional per-row source-catalogue label |
+| `name` | Optional display name |
 
-Positions are ICRS degrees; separations are arcseconds. Tractor fluxes are
-nanomaggies and inverse variances are inverse squared nanomaggies. Supply
-native photometry: the scoring code applies extinction correction and converts
-to luptitudes. Preserve Gaia and catalogue identifiers as exact strings or
-integers. Redshift errors are dimensionless.
+Alternatively set scalar `catalogue_label` and `redshift_kind` in the config.
+For a mixed master, `redshift_kind_by_catalogue` maps the original catalogue
+labels to their types. `catalogue_labels` can map them to `SDSS_DR16Q`,
+`DESI_DR1_QSO` and `QUAIA_G20_V1`, retaining the existing source-specific fallback
+rules. Spectroscopic redshifts receive zero additional uncertainty.
 
-These are prepared associations with the columns used by the preparation and
-scoring scripts for the one-arcsecond route. Obtain survey measurements from their public archives,
-and perform the required joins and quality handling before running this code:
+`redshift_error_format: "json_singleton"` reads a single published error stored
+in a JSON list for each photometric row. Spectroscopic rows may have empty error
+lists. Ambiguous/missing photometric errors stop input validation.
 
-- [SDSS DR16Q](https://www.sdss4.org/dr16/algorithms/qso_catalog/)
-- [DESI DR1](https://data.desi.lbl.gov/doc/releases/dr1/)
-- [Quaia](https://irsa.ipac.caltech.edu/data/Quaia/overview.html)
-- [Gaia Archive](https://gea.esac.esa.int/archive/)
-- [Legacy Surveys DR9](https://www.legacysurvey.org/dr9/)
-- [Pan-STARRS](https://panstarrs.stsci.edu/), [NSC](https://datalab.noirlab.edu/dataexploration/dataaccess/nsc) and [SkyMapper](https://skymapper.anu.edu.au/data-release/dr4/)
+A master may combine several native records. Map their JSON identifier fields
+in `columns`, then choose them using `catalogue_object_id_columns`, keyed by the
+original catalogue label, and `catalogue_object_id_format: "json_array"`. All
+native IDs remain in the discovered parent. A single ID supplies the native
+object identity; multiple IDs retain the master identity and explicit native-ID
+list. DESI fallback photometry uses exact target IDs. Identical measurements from
+several targets agree; conflicting target measurements are unavailable with a
+`conflicting_native_targets` flag. No target is chosen arbitrarily. The original
+single-target path retains its behavior.
 
-## Imaging candidate-search inputs
+The combined SDSS+DESI+Quaia master is a supported input rather than a bundled
+catalogue. The supplied adopted redshift hierarchy is retained. Changing the
+starting population or coordinates can change discovery membership; the workflow
+does not force the historical 712 parent entries or a fixed final count.
 
-Set local paths in `imaging_search.local.json`, copied from the root example.
-All files are local CSV or FITS catalogues. Tractor inputs may be a list of
-files/globs; FITS files are read in chunks and CSV files are streamed. No
-catalogue acquisition or network query is performed by this stage.
+## Data acquisition
 
-| Config key | Required measurements |
+`sources` maps a source name to `table`, `release` and `columns` (canonical to
+native WSDB column names). The example maps the fields inspected in the WSDB
+survey schemas. Only identifiers are accepted as table/column settings; query
+expressions and credentials are rejected. Multiple tables can be supplied using
+`{"tables": [{"table": "schema.north", "release": "north release", "columns": {...}},
+{"table": "schema.south", "release": "south release", "columns": {...}}]}` with
+identical ordered canonical fields. A source table must cover the intended sky
+region and survey release. Query success alone does not establish survey footprint.
+
+| Source | Canonical fields |
 | --- | --- |
-| `master_catalogue` | Gaia-linked master with unique `qso_parent_index`, exact `source_id`, `gaia_ra`, `gaia_dec`, `adopted_redshift`, `adopted_redshift_catalogue`. Optional `sdss_name`, `q_ra`, `q_dec`, catalogue memberships and original provenance are retained. Missing query coordinates default to the Gaia coordinates. |
-| `tractor_catalogues` | Local DR9 sources with `release`, `brickid`, `objid`, `type`, `ra`, `dec`, `maskbits`, `fracflux_r`, and `flux_*`, `flux_ivar_*`, `nobs_*` for g/r/z. `brick_primary` is used when present. Raw unassociated source catalogues are spatially matched locally. Existing field-neighbour caches are also supported when they include exact `parent_gaia_source_id`; old numerical parent indices alone are insufficient. |
-| `tractor_coverage` | One successful-query record per master Gaia `source_id`, with `ra_deg`, `dec_deg`, `query_radius_arcsec` (at least 10). Include successful empty queries. The coordinates must agree with the master. |
-| `gaia_catalogue` | Local Gaia DR3 sources with exact `source_id`, `ra`, `dec`, `phot_g_mean_mag`, `pmra`, `pmdec`, `pmra_error`, `pmdec_error`, `pmra_pmdec_corr`, `parallax_over_error`, `ruwe`. Repeated source IDs from overlapping complete cones are deduplicated. |
-| `gaia_coverage` | Successful component-cone centres `ra_deg`, `dec_deg`, `query_radius_arcsec` (at least 0.7), including cones with no detections. |
-| `ccd_catalogue` | DR9 g-band CCD metadata: `camera`, `filter`, `ccd_cuts`, `mjd_obs`, `exptime`, `sig1`, `width`, `height`, `crpix1/2`, `crval1/2`, `cd1_1`, `cd1_2`, `cd2_1`, `cd2_2`. Unassociated CCD catalogues also need centre `ra`, `dec`; field-query caches instead use `qso_parent_index` and may retain `target_ra`, `target_dec` for coordinate checks. |
-| `ccd_coverage` | Successful query records `qso_parent_index`, `ra_deg`, `dec_deg`, `query_radius_deg` (at least 0.65), centred on the discovered r-band primary. Include successful empty queries. |
-| `quaia_catalogue` | Published `source_id`, `redshift_quaia`, `redshift_quaia_err`. A complete superset is acceptable; only the discovered master records are used, and adopted Quaia redshifts must agree exactly within 1e-12. |
+| `gaia` | `source_id`, `ra`, `dec`, `phot_g_mean_mag`, `pmra`, `pmdec`, their errors, `pmra_pmdec_corr`, `parallax_over_error`, `ruwe` |
+| `tractor` | `release`, `brickid`, `objid`, `type`, `ra`, `dec`, `maskbits`, `fracflux_r`, plus g/r/z `flux_*`, `flux_ivar_*`, `nobs_*`; `brick_primary` is used when supplied |
+| `desi` | `targetid`, `release`, g/r/z `flux_*` and `flux_ivar_*` |
+| `ps1` | Source ID/position and native grizy Kron magnitudes/errors, mapped to `ps1_*kronmag`/`ps1_*kronmagerr` |
+| `skymapper` | Source ID/position and uvgriz Petrosian magnitudes/errors, mapped to `skymapper_*_petro`/`skymapper_e_*_petro` |
+| `nsc` | Source ID/position and ugrizyVR native magnitudes/errors, mapped to `nsc_*mag`/`nsc_*err` |
+| `vhs` | Source ID/position and Y/J/H/Ks aperture-3 magnitudes/errors |
+| `allwise` | Source ID/position and W1/W2 `mpro`/`sigmpro` |
+| `ccd` (optional WSDB alternative) | Centre position, `filter`, `ccd_cuts`, `camera`, dimensions, TAN WCS, `mjd_obs`, `exptime`, `sig1` |
 
-Coverage records are data-acquisition logs, not candidate selections. Their
-purpose is to distinguish a genuinely empty cone from an unqueried field.
-They must describe complete supplied catalogue extracts; the presence of one
-nearby source does not establish coverage. For bulk survey files, establish
-which complete cones their footprints cover before recording those fields as
-available. Missing or inconsistent coverage stops the search rather than
-treating those fields as non-detections.
+The example uses `public_sources` for `sdss: "sdss_dr17"` and
+`ccd: "legacy_dr9_ccds"`, as in the previous acquisition scripts. SDSS DR17
+PhotoObjAll supplies ugriz PSF magnitudes/errors and clean/mode flags for the
+inventory; it supplies no parent quasar redshift. Data Lab
+`ls_dr9.ccds_annotated` supplies quality-selected ground-based g exposures with
+WCS and time metadata for DCR. Gaia epoch-photometry CCD tables cannot supply
+these ground-based observations. The public inputs are recorded separately
+from WSDB exports. They use no personal database credentials.
 
-The initial Tractor search uses a 1.5 arcsec aperture and retains the original
-full-master nearest-source colour reference. Do not apply a new latitude or
-magnitude cut to this master if reproducing the paper's counts. Later vetting
-applies the latitude, photometric, PM and DCR requirements. Component roles
-are fixed using the original local g-r median within z +/- 0.1, excluding the
-target and requiring at least 20 reference objects; otherwise the nearest
-component to the supplied quasar position is used, with the original r-band
-fallback retained when necessary.
+The acquisition sequence is:
 
-Master CSVs use the same standard pandas floating-point parsing as the original
-search. This preserves the adopted redshift values exactly: the model's
-support-sampling seed hashes its numerical inputs, so even a last-bit change
-from a different CSV parser can change a borderline support decision. Other
-catalogue CSVs retain round-trip parsing. This convention is checked when
-comparing the rebuilt inputs and scores with the reference run.
+1. Query complete 2-arcsec Gaia cones around every starting quasar. Include empty
+   and isolated fields. Compute all 1-arcsec positional matches and cnt1 locally;
+   cnt1 includes the central detection. Two-arcsec cones enclose a possible
+   1-arcsec-offset anchor and its complete 1-arcsec neighbourhood.
+2. Select cnt1 greater than one before choosing the nearest qualifying Gaia
+   match per quasar, then deduplicate catalogue positions within 1 arcsec.
+   Imaging separately uses the nearest Gaia anchor and one row per anchor.
+3. Query Tractor sources to 10 arcsec around imaging anchors and any additional
+   one-arcsecond anchors. The existing DR9 north/south selection and source
+   identity rules are applied locally.
+4. Discover PSF pairs within 1.5 arcsec. Query Gaia within 0.7 arcsec of each
+   component and g-band CCD centres within 0.65 degrees of the r-ranked primary.
+   CCD WCS then determines which exposures actually contain that position.
+5. Query supplementary photometry in 2-arcsec anchor cones. The builders retain
+   the original 1-arcsec matching aperture around the quasar coordinates. Query
+   DESI fallback photometry by exact native target ID.
+6. Build component tables, resolution classes and quality flags, then score and
+   select using the existing rules. Measure r-band morphology from local images,
+   downloading missing cutouts only when enabled.
 
-With only the master/Tractor inputs available, `--stage discover` writes the
-Gaia and CCD query-position tables for subsequent data acquisition. Supply
-the additional local files later and rerun the complete stage. Search and
-association outputs are generated under `PAPER1_WORK_ROOT/imaging_search/`;
-the five vetting inputs are in its `inputs/` subdirectory:
+Raw WSDB exports are batched in groups of at most 2,000 positions with individual
+checkpoints. Query summaries record source release/mapping, positions/radii/code
+fingerprints and output hashes. `--resume` reuses verified exports; it does not
+check for later database updates. Overlapping batches can repeat native rows,
+which the shared builders deduplicate. Public query responses have their own
+hashed checkpoints. Only complete successful queries yield coverage records.
+An error stops the workflow instead of becoming an empty field.
 
-| Generated file | Role |
-| --- | --- |
-| `imaging_channel.fits` | Initial ranked Tractor pairs, including the PSF–PSF discovery sample. |
-| `imaging_components.fits` | Validated, r-ranked PSF components and exact Tractor identities. |
-| `imaging_labelled.fits` | Fixed primary/secondary roles, component Gaia associations, covariance-aware PM significance and exposure-based DCR angle. |
-| `imaging_tractor.fits` | Local component photometry and quality metadata. |
-| `quaia_imaging_reference.fits` | Published Quaia redshifts/errors for the discovered master records. |
+Generated configurations and raw files are under `PAPER1_WORK_ROOT/wsdb_inputs`.
+The final six products remain separate. The only server writes are temporary
+query-position tables. Credential values are neither printed nor saved.
 
-Separate Gaia detections are not forced: if the same Gaia source is the nearest
-match to both components, the system belongs to the one-distinct-Gaia tier.
-Missing Gaia PM remains missing for the following selection policy. Images,
-image-model decomposition and morphology-profile generation are outside this
-search stage; the supplied morphology table below remains required.
+## Images and morphology
 
-## Imaging morphology measurements
+`morphology_images.download_missing: true` enables Legacy Surveys DR9 r-band
+cutouts. The default is 100 pixels at 0.1 arcsec/pixel (10 arcsec), centred on
+the supplied cutout/Gaia position with the original seven-decimal coordinate
+rounding. Generic rows without either centre use the pair midpoint. These
+settings match the original acquisition script. Downloaded FITS data must contain both component coordinates in their
+WCS. Partial/invalid responses are not installed as images. Raw-image request
+parameters and hashes are recorded alongside the image.
 
-Supply a CSV with one row per measured `qso_parent_index` and these columns:
+By default these files are cached under `PAPER1_WORK_ROOT/wsdb_inputs/rband_images`.
+Set `path_template` to use another location; it can include `qso_parent_index`
+or fields from the scored-system row. Set `r_band_index` for local multiband
+cubes. Existing images are reused. Set `download_missing: false` for an offline
+run; missing required images then stop the stage with example paths.
 
-| Column | Meaning |
-| --- | --- |
-| `qso_parent_index` | Exact imaging parent identifier; unique within the table. |
-| `image_axis_sigma_arcsec` | Previously measured along-pair image width in arcseconds. |
-| `image_perp_sigma_arcsec` | Previously measured perpendicular image width in arcseconds. |
-| `r_perp_sigma_ratio` | Previously measured width ratio used for the $R_\perp\geq1.05$ selection. |
-| `morphology_measurement_source` | Provenance label for the supplied measurement. |
+The existing morphology calculation forms baseline-subtracted profile moments
+parallel/perpendicular to the pair at its midpoint, with 1-arcsec half-width,
+1.5-arcsec margins and one-pixel bins. It writes the width ratio and image
+provenance before the selection applies `R_perp >= 1.05`. No premeasured
+morphology or visual-inspection table is read.
 
-The default location is `PAPER1_INPUT_ROOT/imaging_morphology_measurements.csv`.
-Override it with `PAPER1_IMAGING_MORPHOLOGY_PATH`.
-The selector joins measurements by parent identifier and rejects candidate
-systems without a finite ratio. Image-profile generation and its input images
-are outside this release.
+## Local-file route
 
-## Visual-inspection decisions
+Use `--data-source local` and the quasar, imaging and measurement configuration
+examples. The master adapter needs raw Gaia detections and a coverage CSV keyed
+by input `object_id`, with `ra_deg`, `dec_deg`, `query_radius_arcsec >= 2`.
+It computes positional associations and counts itself.
 
-Supply `visual_inspection_rejections.csv` with columns
-`one_arcsecond_qso_group_id`, `imaging_qso_parent_index` and `reason`.
-Use an empty identifier field when a rejection applies only to the other
-search. The file records the decisions made for the sample being analysed;
-it is not a substitute for inspecting new candidates.
+The measurement builder reads native Gaia, Tractor, DESI and six survey inputs.
+Their column maps are in `measurement_inputs.example.json`. Positional inputs
+need coverage keyed by exact anchor `source_id`, with cone centre and radius.
+Successful empty cones must be included. Set `full_catalogue: true` only for a
+complete survey catalogue covering the relevant region, never to bypass missing
+queries. Shared nearest Tractor detections are withheld from resolved component
+photometry, and per-band quality flags are calculated from native measurements.
 
-The default location is under `PAPER1_INPUT_ROOT`. Override it with
-`PAPER1_VISUAL_REJECTIONS_PATH`. The paper's original decisions are needed to
-reproduce its reference counts.
+Imaging Tractor coverage is centred on the master anchor with radius at least
+10 arcsec. Gaia component coverage must enclose every 0.7-arcsec matching cone.
+CCD coverage is keyed by `qso_parent_index` at the discovered r-ranked primary,
+with centre and `query_radius_deg >= 0.65`. Changing discovery membership requires
+rebuilding these coordinate-dependent associations.
 
-## External dependencies
+Generated WSDB exports can be reused offline by passing their
+`quasar_catalogue.json`, `imaging_search.json` and `measurement_inputs.json` to
+the local runner. This recalculates the neighbour counts. Relocate absolute paths
+when transferring these data. Raw extracts may be distributed separately where
+survey terms permit; they are excluded from this Git repository.
 
-Install the pinned model package and SFD dust maps using the
-[main README](../README.md). `verification/verify_input_contracts.py` checks
-that the 16 external vetting inputs and five generated imaging tables are present, the model manifests/revision match,
-and the extinction maps exist. File availability does not establish that a
-replacement catalogue reproduces the paper's scientific associations.
+## Models, controls and literature
 
-## Additional inputs for chance-alignment controls
+Install the pinned model package and SFD maps as described in the main README.
+`verification/verify_input_contracts.py --models-only` checks them without opening
+survey data or a network connection. The full workflow also checks generated
+input identities and output consistency. A useful calibration population and
+adequate survey coverage are required for a replacement quasar catalogue.
 
-The fresh control workflow starts from the vetting outputs and working tables;
-these are generated by the sequence in the main README. In particular it reads
-`one_arcsecond_scores.csv`, `imaging_scores.csv`, `threshold_calibration.json`
-and the working `imaging/labelled_systems_audit.csv`, together with the supplied
-generated component/Tractor FITS files above. It does not read a final candidate list.
-
-Two additional, separately supplied catalogues are required:
-
-| Config key | Required columns and meaning |
-| --- | --- |
-| `master_catalogue` | The Gaia-linked SDSS+DESI+Quaia master CSV: `qso_parent_index`, `source_id`, `gaia_ra`, `gaia_dec`, `phot_g_mean_mag`, `adopted_redshift`, `adopted_redshift_catalogue`. Positions are ICRS degrees. Preserve exact Gaia identifiers. |
-| `quaia_catalogue` | The full published Quaia G<20 FITS catalogue: `source_id`, `redshift_quaia`, `redshift_quaia_err`. The reduced vetting reference files do not cover every possible control donor. |
-
-The combined master is a prepared survey association table supplied by the
-research analysis, rather than a single public catalogue download. Obtain the
-SDSS, DESI, Quaia and Gaia inputs from their archives listed above and preserve
-the adopted source associations/redshift hierarchy, or supply the original
-prepared master to reproduce the reference experiment. The reference master
-contains 1,157,489 entries at |b| >= 25 degrees; G<20 applies to Quaia, not to
-all SDSS/DESI primaries.
-
-The control scripts fetch their Gaia DR3, Legacy DR9 and fallback PS1/NSC/SkyMapper
-measurements from public services, with successful queries cached locally.
-They use no WSDB connection or personal credentials. Input catalogues, downloaded
-controls and generated outputs stay outside Git. Paths in
-`chance_alignment.local.json` are resolved relative to that config file.
+Chance-alignment controls retain their separate public acquisition and scoring
+sequence. Their config needs the full Gaia-linked quasar master and full published
+Quaia catalogue, not just the reduced reference for selected systems. Controls
+use input populations, not the final candidate list. The bundled literature
+reference CSVs and their classification/matching policy are documented in
+[literature/README.md](literature/README.md).
