@@ -1,4 +1,4 @@
-"""Crossmatch the supplied literature snapshots and remove confirmed contaminants."""
+"""Crossmatch literature, retaining known lenses and removing non-lens contaminants."""
 
 import argparse
 import hashlib
@@ -16,7 +16,7 @@ from dual_agn.settings import (FINAL_CANDIDATES_PATH, IDENTIFIER_DTYPES, IMAGING
 from dual_agn.workflow import PIPELINE_CHOICES, selected_pipelines
 
 
-EXCLUSION_STAGE = 'Confirmed literature contaminant removal'
+EXCLUSION_STAGE = 'Confirmed non-lens literature contaminant removal'
 
 
 def add_score_flags(scores, candidate_audit, score_key, candidate_key):
@@ -46,7 +46,7 @@ def update_score_audits(candidate_audit, pipeline='both'):
         one = add_score_flags(one, candidate_audit, 'qso_group_id', 'one_arcsecond_qso_group_id')
         one['literature_final_pass'] = (one.selected_by_resolved | one.selected_by_unresolved) & ~one.literature_contaminant_removed
         one_cutflow = pd.read_csv(ONE_ARCSECOND_CUTFLOW_PATH)
-        one_cutflow = one_cutflow.loc[one_cutflow['Selection stage'].ne(EXCLUSION_STAGE)].copy()
+        one_cutflow = one_cutflow.loc[~one_cutflow['Selection stage'].isin([EXCLUSION_STAGE, 'Confirmed literature contaminant removal'])].copy()
         one_rows = []
         for route in ['Resolved', 'Unresolved']:
             if route == 'Resolved':
@@ -65,7 +65,7 @@ def update_score_audits(candidate_audit, pipeline='both'):
         imaging = add_score_flags(imaging, candidate_audit, 'qso_parent_index', 'imaging_qso_parent_index')
         imaging['literature_final_pass'] = imaging.joint_final_pass & ~imaging.literature_contaminant_removed
         imaging_cutflow = pd.read_csv(IMAGING_CUTFLOW_PATH)
-        imaging_cutflow = imaging_cutflow.loc[imaging_cutflow['Selection stage'].ne(EXCLUSION_STAGE)].copy()
+        imaging_cutflow = imaging_cutflow.loc[~imaging_cutflow['Selection stage'].isin([EXCLUSION_STAGE, 'Confirmed literature contaminant removal'])].copy()
         row = {'Selection stage': EXCLUSION_STAGE,
                'One-Gaia': int((imaging.literature_final_pass & imaging.candidate_tier.eq('one_gaia')).sum()),
                'Two-Gaia': int((imaging.literature_final_pass & imaging.candidate_tier.eq('two_gaia')).sum()),
@@ -100,6 +100,7 @@ def main():
               'imaging': int(final_candidates.selected_by_imaging.sum()),
               'shared': int(final_candidates.selected_by_both_searches.sum()),
               'confirmed_dual_matches': int(final_candidates.literature_confirmed_dual.sum()),
+              'confirmed_lenses_retained': int(final_candidates.literature_confirmed_lens.sum()),
               'uncertain_classification_flags': int(final_candidates.literature_uncertain_classification.sum())}
     if counts['resolved'] + counts['unresolved'] + counts['imaging'] - counts['shared'] != counts['final_candidates']:
         raise ValueError('Cleaned route counts do not reconcile with the unique catalogue')
@@ -115,7 +116,7 @@ def main():
         'references_without_positions': references.loc[references.ra_deg.isna(), ['reference_id', 'system_name']].to_dict('records'),
         'reference_sha256': {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in [args.binaries,args.contaminants]},
         'input_sha256': hashlib.sha256(args.candidates.read_bytes()).hexdigest(),
-        'removal_policy': 'Verified pair identity and confirmed contaminant classification; uncertain or conflicting cases retained.',
+        'removal_policy': 'Confirmed lenses retained and flagged; only verified confirmed non-lens contaminants removed; uncertain or conflicting cases retained.',
     }
     LITERATURE_WORK_ROOT.mkdir(parents=True, exist_ok=True)
     associations.to_csv(LITERATURE_WORK_ROOT/'associations.csv', index=False)

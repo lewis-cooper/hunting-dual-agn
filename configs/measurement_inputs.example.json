@@ -27,6 +27,7 @@
     "ps1": {
       "path": "data/inputs/native/ps1.csv",
       "coverage": "data/inputs/native/ps1_coverage.csv",
+      "record_identity": ["source_id", "ra", "dec"],
       "columns": {
         "source_id": "source_id",
         "ra": "ra",

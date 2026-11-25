@@ -112,7 +112,7 @@ def main():
     parser.add_argument('--calibration-only', action='store_true', help='Build Gaia/Tractor calibration measurements without supplementary blended photometry')
     args = parser.parse_args()
     if not args.config.is_file():
-        parser.error('Copy examples/local/measurement_inputs.example.json to measurement_inputs.local.json and supply native catalogue paths/coverage')
+        parser.error('Copy configs/measurement_inputs.example.json to measurement_inputs.local.json and supply native catalogue paths/coverage')
     parent = pd.read_csv(args.parent, dtype={**IDENTIFIER_DTYPES, 'matched_gaia_source_id': 'string', 'primary_qso_objid': 'string'})
     build_measurements(read_config(args.config), parent, args.output_root, args.parent, args.calibration_only)
 

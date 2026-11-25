@@ -223,7 +223,7 @@ class ImagingSearchTests(unittest.TestCase):
         sequence=commands('vetting',imaging_search_config=Path('search.json'))
         search=next(i for i,command in enumerate(sequence) if 'scripts.imaging.search_candidates' in command)
         prepared=next(i for i,command in enumerate(sequence)
-                      if 'verification/verify_input_contracts.py' in command and '--external-only' not in command and '--models-only' not in command)
+                      if 'tests/verify_input_contracts.py' in command and '--external-only' not in command and '--models-only' not in command)
         self.assertLess(search,prepared)
 
 

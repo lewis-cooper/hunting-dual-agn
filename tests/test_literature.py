@@ -27,7 +27,7 @@ class LiteratureTests(unittest.TestCase):
             secondary_ra_deg=10.0002, secondary_dec_deg=0.,
             redshift=.5, separation_arcsec=.72, position_angle_deg=np.nan,
             primary_gaia_source_id='', secondary_gaia_source_id='',
-            classification='confirmed_lens', author_year='Example (2026)',
+            classification='confirmed_quasar_star', author_year='Example (2026)',
             publication_url='https://example.org/paper', source_table='Table 1',
             reference_catalogue='known_lenses_contaminants', match_rule='component_pair',
             position_tolerance_arcsec=.1, separation_tolerance_arcsec=.02)
@@ -81,12 +81,29 @@ class LiteratureTests(unittest.TestCase):
                 self.assertFalse(audit.literature_contaminant_removed.any())
                 self.assertTrue(audit.literature_uncertain_classification.all())
 
+    def test_verified_confirmed_lenses_are_retained_and_flagged(self):
+        associations, audit = self.audit(self.reference(classification='confirmed_lens'))
+        self.assertTrue(associations.match_verified.all())
+        self.assertFalse(associations.remove_candidate.any())
+        self.assertFalse(audit.literature_contaminant_removed.any())
+        self.assertTrue(audit.literature_confirmed_lens.all())
+
     def test_conflicting_confirmed_classes_are_retained_for_review(self):
         references = pd.concat([self.reference(), self.reference(reference_id='dual:pair1',
             classification='confirmed_dual_agn', reference_catalogue='known_binaries')], ignore_index=True)
         _, audit = self.audit(references)
         self.assertFalse(audit.literature_contaminant_removed.any())
         self.assertFalse(audit.literature_confirmed_dual.any())
+        self.assertTrue(audit.literature_uncertain_classification.all())
+
+    def test_conflicting_dual_and_lens_classifications_remain_uncertain(self):
+        references = pd.concat([self.reference(classification='confirmed_lens'),
+            self.reference(reference_id='dual:pair1', classification='confirmed_dual_agn',
+                           reference_catalogue='known_binaries')], ignore_index=True)
+        _, audit = self.audit(references)
+        self.assertFalse(audit.literature_contaminant_removed.any())
+        self.assertFalse(audit.literature_confirmed_dual.any())
+        self.assertFalse(audit.literature_confirmed_lens.any())
         self.assertTrue(audit.literature_uncertain_classification.all())
 
     def test_published_geometry_requires_separation_agreement(self):

@@ -18,7 +18,7 @@ def main():
     parser.add_argument('--check-inputs',action='store_true')
     args = parser.parse_args()
     if not args.config.is_file():
-        parser.error(f'Missing {args.config}; copy examples/local/imaging_search.example.json to imaging_search.local.json and set local data paths. No download will be attempted.')
+        parser.error(f'Missing {args.config}; copy configs/imaging_search.example.json to imaging_search.local.json and set local data paths. No download will be attempted.')
     config = resolve_config(args.config)
     if args.check_inputs:
         paths = input_paths(config,args.stage=='discover')

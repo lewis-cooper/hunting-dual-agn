@@ -67,7 +67,7 @@ unless both published Gaia IDs establish the pair.
 
 ## Classification policy
 
-Only verified `confirmed_lens`, `confirmed_quasar_star`,
+Verified `confirmed_lens` matches are retained and flagged. Only verified `confirmed_quasar_star`,
 `confirmed_quasar_galaxy`, `confirmed_stellar_pair`, and
 `confirmed_projected_quasar_pair` matches are removed. Likely lenses,
 lens candidates, possible quasar–star pairs and unclassified quasar pairs are

@@ -6,7 +6,7 @@ not connect to a survey database, download catalogues or fetch images.
 
 ## Quasar and Gaia discovery inputs
 
-`examples/local/quasar_catalogue.example.json` maps the supplied quasar catalogue.
+`configs/quasar_catalogue.example.json` maps the supplied quasar catalogue.
 It needs a unique object ID, RA/Dec in degrees and redshift. Supply either a
 catalogue-wide redshift type or per-row types. Photometric redshifts require
 finite nonnegative errors; spectroscopic values receive zero additional error.
@@ -39,7 +39,7 @@ Keep **all** SDSS/DESI Gaia DR3 associations within 1 arcsec, and use Quaia's
 published Gaia IDs directly. Preserve the survey quasar coordinates in `qso_ra`
 and `qso_dec`; substituting Gaia positions can change duplicate grouping.
 Supply the associations and EDR3 auxiliary neighbour counts through
-`examples/local/one_arcsecond_search.example.json`. Selection applies `cnt1 > 1`
+`configs/one_arcsecond_search.example.json`. Selection applies `cnt1 > 1`
 before choosing the nearest qualifying match. Groups use a 1-arcsec positional
 link and the original representative priority SDSS, DESI, then Quaia. This
 grouping priority is separate from later redshift adoption.
@@ -52,7 +52,7 @@ Gaia-neighbour input population.
 
 ## Imaging discovery inputs
 
-`examples/local/imaging_search.example.json` describes the supplied Gaia-linked
+`configs/imaging_search.example.json` describes the supplied Gaia-linked
 master and local survey extracts. Preserve master `qso_parent_index` values:
 Gaia/CCD query records must refer to that same population.
 
@@ -80,7 +80,7 @@ tables are placed under `PAPER1_WORK_ROOT/imaging_search/inputs`.
 
 ## Component measurements and images
 
-`examples/local/measurement_inputs.example.json` supplies Gaia/Tractor data for
+`configs/measurement_inputs.example.json` supplies Gaia/Tractor data for
 the discovered Gaia-neighbour systems, exact DESI fallback photometry where
 needed, PS1/NSC/SkyMapper photometry, and the image-path template. Native column
 maps are canonical-to-file mappings. Fluxes are nanomaggies, inverse variances
@@ -91,6 +91,14 @@ with centre and radius. Set `full_catalogue: true` only for a complete catalogue
 covering the relevant region. It is not a way to mark a partial extraction as
 complete. A supplementary survey may be explicitly disabled; that removes its
 bands from scoring and may change the result.
+
+PS1 stack catalogues can contain several measurements with the same object ID.
+For those extracts, set `record_identity` to the unique native-row fields, for
+example `["source_id", "ra", "dec"]` when that combination is unique. The
+builder selects the nearest native row within 1 arcsec, matching the original
+PS1 query, and records its coordinates. It does not keep an arbitrary first
+object-ID duplicate. Conflicting rows with the same declared identity stop the
+run. The default identity remains `source_id` for single-row catalogues.
 
 The builder calculates component association, PSF/SNR/quality flags, structural
 resolution classes and per-band eligibility. Shared nearest Tractor detections
@@ -116,6 +124,6 @@ identical. The code does not enforce historical candidate counts.
 
 Model bundles and dust maps are separately installed local prerequisites.
 Visual inspection is outside the workflow. The two cited literature CSVs are
-included; [literature/README.md](literature/README.md) explains their matching and
+included; [data/literature/README.md](data/literature/README.md) explains their matching and
 classification policy. The optional chance-alignment experiment is separate
 from the local candidate workflow and retains its own public control acquisition.

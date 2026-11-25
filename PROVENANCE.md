@@ -1,4 +1,4 @@
-# Scorer revision for the paper
+# Scorer and selection provenance
 
 This analysis requires the clean `qso_pcolor` checkout at
 `dbc392623d27e22744d5224f9f1a3fd52f6230a8` (`dbc3926`). Model bundles being
@@ -27,3 +27,22 @@ check. Dry-run plans and discovery-only runs do not score sources.
 The existing calibration JSON records the verified scorer revision for new
 runs. Existing historical outputs are not retroactively assigned provenance
 that they did not record.
+
+## Selection and literature policy
+
+Either model may select a resolved companion; imaging requires both components
+to pass within the same model variant. Threshold calibration precedes the final
+secondary-PM cut and keeps its calibration-only upper limit of 70. Two-Gaia
+systems require secondary PM significance below 3 when finite; missing PM is
+retained and flagged. Imaging also requires finite primary PM significance below
+3. The DCR angle threshold of 20 degrees applies once to one-Gaia imaging only.
+Morphology uses R_perp >= 1.05. Quaia redshift errors are propagated in scoring.
+
+Confirmed lenses are retained and flagged. Removal requires a verified pair
+identity and a confirmed non-lens contaminant classification. Uncertain and
+conflicting cases remain flagged. The reference CSVs and matching rules are
+documented in [data/literature/README.md](data/literature/README.md).
+
+Visual inspection remains outside the automatic workflow. Candidate counts and
+the calibrated threshold are measured from supplied data and are not fixed to
+the historical reference values.

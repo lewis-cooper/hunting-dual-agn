@@ -18,6 +18,7 @@ from dual_agn.settings import (FIGURE_ROOT, IDENTIFIER_DTYPES, ONE_ROOT, OUTPUT_
     ONE_ARCSECOND_PARENT_PATH, ONE_ARCSECOND_SEARCH_ROOT, ONE_ARCSECOND_CUTFLOW_PATH)
 from dual_agn.score_selection import build_secondary_pm_flags, has_two_distinct_gaia_sources
 from dual_agn.workflow import PIPELINE_CHOICES, product_names, selected_pipelines
+from scripts.shared.crossmatch_literature import EXCLUSION_STAGE
 
 
 def checksum(path):
@@ -50,7 +51,6 @@ def verify_outputs(pipeline='both'):
     frames = [joint]
     pm_inputs = []
     figures = ['joint/galactic_latitude.pdf', 'joint/separation_redshift.pdf']
-    literature_stage = 'Confirmed literature contaminant removal'
     if 'gaia_neighbour' in selected:
         one = pd.read_csv(ONE_ARCSECOND_SCORES_PATH, dtype=IDENTIFIER_DTYPES, low_memory=False)
         one_cutflow = pd.read_csv(ONE_ARCSECOND_CUTFLOW_PATH)
@@ -59,7 +59,7 @@ def verify_outputs(pipeline='both'):
         checks['unique_parent_entries'] = one.qso_group_id.is_unique
         checks['known_scoring_routes'] = one.scoring_route.isin([
             'resolved_original', 'resolved_supplemental', 'unresolved', 'currently_unscoreable']).all()
-        final_rows = one_cutflow.loc[one_cutflow['Selection stage'].eq(literature_stage)]
+        final_rows = one_cutflow.loc[one_cutflow['Selection stage'].eq(EXCLUSION_STAGE)]
         checks['gaia_literature_cutflow_counts'] = final_rows.set_index('Route')['Either model'].to_dict() == {
             'Resolved': int(one.literature_final_pass.where(one.selected_by_resolved, False).sum()),
             'Unresolved': int(one.literature_final_pass.where(one.selected_by_unresolved, False).sum())}
@@ -73,7 +73,7 @@ def verify_outputs(pipeline='both'):
             and imaging.loc[imaging.candidate_tier.eq('one_gaia'), 'pair_dcr_delta_deg'].gt(20).all()
             and cutflow['Selection stage'].str.contains('DCR').sum() == 1 and 'joint_dcr_pass' not in imaging)
         checks['automatic_imaging_selection'] = imaging.joint_final_pass.equals(imaging.joint_morphology_pass)
-        final_row = cutflow.loc[cutflow['Selection stage'].eq(literature_stage)]
+        final_row = cutflow.loc[cutflow['Selection stage'].eq(EXCLUSION_STAGE)]
         checks['imaging_literature_cutflow_counts'] = len(final_row) == 1 and int(final_row.Total.iloc[0]) == int(imaging.literature_final_pass.sum())
         search = json.loads((IMAGING_SEARCH_ROOT/'search_summary.json').read_text())
         counts = search['counts']

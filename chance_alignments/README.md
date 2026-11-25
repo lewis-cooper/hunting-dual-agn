@@ -17,7 +17,7 @@ the populations or scorers used by these method-level controls.
 ## Complete sequence
 
 Install the dependencies and configure the input/model paths in the
-[main README](../README.md). Copy `examples/chance_alignment.example.json` to
+[main README](../README.md). Copy `configs/chance_alignment.example.json` to
 `chance_alignment.local.json` and supply the full quasar master and Quaia paths.
 
 ```sh
@@ -44,7 +44,7 @@ or scoring. Paths are explicit through the config and the existing vetting
 environment variables. Optional config keys are `input_directory`,
 `products_directory`, `vetting_work_directory`, `model_directory` and
 `dustmaps_directory`; their defaults come from `dual_agn/settings.py`. The required
-master/Quaia schema is in the [input guide](../data/README.md).
+master/Quaia schema is in the [input guide](../DATA.md).
 
 1. **Prepare:** derive pre-vetting input descriptors and empirical DCR/morphology
    factors from the repo's own vetting outputs. Sample nested 30,000 and 60,000

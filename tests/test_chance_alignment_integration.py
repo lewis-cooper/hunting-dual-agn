@@ -25,7 +25,7 @@ class ChanceAlignmentIntegrationTests(unittest.TestCase):
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
         self.assertEqual([name for name in modules if name.startswith('scripts.')],
                          ['scripts.shared.prepare_quasar_catalogue']+['scripts.'+name for name in VETTING_STAGES])
-        self.assertIn('verification/verify_example_run.py', sequence[-2])
+        self.assertIn('tests/verify_example_run.py', sequence[-2])
         self.assertEqual(sequence[-2][-2:], ['--pipeline', 'both'])
         self.assertEqual(modules[-1], 'run_chance_alignments')
         self.assertIn('--resume', sequence[-1])

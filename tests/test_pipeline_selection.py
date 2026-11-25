@@ -13,7 +13,7 @@ from dual_agn.workflow import product_names
 from run_analysis import commands
 from scripts.shared import combine_candidates as catalogue
 from scripts.shared import crossmatch_literature as literature
-from verification import test_literature
+from tests import test_literature
 
 
 def gaia_scores():
@@ -79,7 +79,7 @@ class PipelineSelectionTests(unittest.TestCase):
         for pipeline in ('both', 'gaia_neighbour', 'imaging'):
             for command in commands('vetting', pipeline=pipeline):
                 if any(name in command for name in ('scripts.shared.combine_candidates',
-                    'scripts.shared.crossmatch_literature', 'verification/verify_example_run.py')):
+                    'scripts.shared.crossmatch_literature', 'tests/verify_example_run.py')):
                     self.assertEqual(command[-2:], ['--pipeline', pipeline])
             self.assertEqual(len(product_names(pipeline)), 6 if pipeline == 'both' else 4)
 

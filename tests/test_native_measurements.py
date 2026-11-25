@@ -118,6 +118,20 @@ class NativeMeasurementTests(unittest.TestCase):
             self.assertTrue(result.ps1_source_matched.iloc[0])
             self.assertFalse(result.ps1_r_band_quality.iloc[0])
 
+    def test_repeated_stack_object_ids_use_nearest_native_record(self):
+        parent, _, _ = native_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            pd.DataFrame(dict(source_id=['same', 'same'], ra=[30.+.8/3600, 30.+.2/3600],
+                dec=[0.,0.], ps1_rkronmag=[18.,19.], ps1_rkronmagerr=[.1,.1])).to_csv(
+                    Path(directory)/'stack.csv', index=False)
+            specification={'path':'stack.csv', 'full_catalogue':True,
+                           'record_identity':['source_id','ra','dec']}
+            result=build_survey_photometry(parent, {'_directory':directory}, 'ps1', specification,
+                                          {'r':('ps1_rkronmag','ps1_rkronmagerr')})
+            self.assertEqual(result.ps1_rkronmag.iloc[0],19.)
+            self.assertAlmostEqual(result.ps1_match_sep_arcsec.iloc[0],.2,places=6)
+            self.assertAlmostEqual(result.ps1_source_ra_deg.iloc[0],30.+.2/3600)
+
     def test_runner_generates_measurements_before_validation_and_scoring(self):
         sequence = commands('vetting', measurement_config=Path('native.json'))
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]

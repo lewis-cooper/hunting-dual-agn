@@ -7,9 +7,10 @@ import pandas as pd
 
 
 CONFIRMED_CONTAMINANTS = {
-    'confirmed_lens', 'confirmed_quasar_star', 'confirmed_projected_quasar_pair',
+    'confirmed_quasar_star', 'confirmed_projected_quasar_pair',
     'confirmed_quasar_galaxy', 'confirmed_stellar_pair',
 }
+CONFIRMED_LENSES = {'confirmed_lens'}
 UNCERTAIN_CLASSIFICATIONS = {
     'likely_lens', 'lens_candidate', 'disputed_dual_lens',
     'possible_quasar_star', 'unclassified_quasar_pair',
@@ -20,7 +21,7 @@ REFERENCE_NUMERIC_COLUMNS = [
     'position_tolerance_arcsec', 'separation_tolerance_arcsec',
 ]
 LITERATURE_FLAG_COLUMNS = [
-    'literature_assessed', 'literature_confirmed_dual', 'literature_possible_association',
+    'literature_assessed', 'literature_confirmed_dual', 'literature_confirmed_lens', 'literature_possible_association',
     'literature_uncertain_classification', 'literature_contaminant_removed',
 ]
 LITERATURE_TEXT_COLUMNS = [
@@ -58,7 +59,7 @@ def read_references(binaries_path, contaminants_path):
         for column in ['primary_gaia_source_id', 'secondary_gaia_source_id']:
             if (frame[column].ne('') & ~frame[column].str.fullmatch('[1-9][0-9]*')).any():
                 raise ValueError(f'{path}: Gaia IDs must be exact integer strings in {column}')
-        allowed_classes = {'confirmed_dual_agn'} if catalogue == 'known_binaries' else CONFIRMED_CONTAMINANTS | UNCERTAIN_CLASSIFICATIONS
+        allowed_classes = {'confirmed_dual_agn'} if catalogue == 'known_binaries' else CONFIRMED_CONTAMINANTS | CONFIRMED_LENSES | UNCERTAIN_CLASSIFICATIONS
         if not frame.classification.isin(allowed_classes).all():
             raise ValueError(f'{path}: unknown or inappropriate classification')
         if frame[['author_year', 'publication_url', 'source_table']].eq('').any().any():
@@ -176,12 +177,14 @@ def annotate_candidates(candidates, associations):
         selected = result.candidate_id.eq(candidate_id)
         verified = group.loc[group.match_verified]
         confirmed_binary = verified.classification.eq('confirmed_dual_agn').any()
+        confirmed_lens = verified.classification.isin(CONFIRMED_LENSES).any()
         excluded = verified.loc[verified.confirmed_contaminant]
         # Conflicting classifications require review; they never trigger automatic removal.
         disputed = verified.classification.eq('disputed_dual_lens').any()
-        conflict = confirmed_binary and not excluded.empty
+        conflict = (confirmed_binary and (confirmed_lens or not excluded.empty)) or (confirmed_lens and not excluded.empty)
         remove = not excluded.empty and not disputed and not conflict
         result.loc[selected, 'literature_confirmed_dual'] = confirmed_binary and not conflict and not disputed
+        result.loc[selected, 'literature_confirmed_lens'] = confirmed_lens and not conflict and not disputed
         result.loc[selected, 'literature_possible_association'] = (~group.match_verified).any()
         result.loc[selected, 'literature_uncertain_classification'] = group.uncertain_classification.any() or conflict or disputed
         result.loc[selected, 'literature_contaminant_removed'] = remove

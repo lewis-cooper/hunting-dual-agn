@@ -154,13 +154,18 @@ def build_survey_photometry(parent, config, survey, specification, bands):
                             'ra': parent.primary_qso_ra, 'dec': parent.primary_qso_dec})
     require_coverage(targets, config, specification, 1.)
     required = ['source_id', *[name for pair in bands.values() for name in pair]]
-    sources = read_local_sources(targets, config, specification, 1., ['source_id'], required)
+    identity = specification.get('record_identity', ['source_id'])
+    if not isinstance(identity, list) or not identity or not all(isinstance(name, str) for name in identity):
+        raise ValueError(f'{survey}: record_identity must be a nonempty list of canonical native-row columns')
+    sources = read_local_sources(targets, config, specification, 1., identity, required)
     if not set(required).issubset(sources):
         raise ValueError(f'{survey} native column map needs {required}')
-    matched = nearest_sources(targets, sources, 1., ['source_id'])
+    matched = nearest_sources(targets, sources, 1., identity)
     result = pd.DataFrame({'qso_group_id': parent.qso_group_id})
     present = matched.source_id.notna()
     result[f'{survey}_source_id'] = matched.source_id.to_numpy()
+    result[f'{survey}_source_ra_deg'] = matched.ra.to_numpy()
+    result[f'{survey}_source_dec_deg'] = matched.dec.to_numpy()
     result[f'{survey}_match_sep_arcsec'] = matched.match_sep_arcsec.to_numpy()
     result[f'{survey}_source_matched'] = present.to_numpy()
     for band, (magnitude_column, error_column) in bands.items():

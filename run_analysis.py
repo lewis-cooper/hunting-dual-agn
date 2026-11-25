@@ -50,7 +50,7 @@ def commands(stage, chance_config=None, resume=False, imaging_search_config=None
         return [command + (['--resume'] if resume else [])]
     result = []
     if stage in ('all', 'vetting'):
-        result.append([sys.executable, '-B', 'verification/verify_input_contracts.py', '--models-only'])
+        result.append([sys.executable, '-B', 'tests/verify_input_contracts.py', '--models-only'])
     quasar_catalogue_config = (quasar_catalogue_config or ROOT/'quasar_catalogue.local.json').resolve()
     measurement_config = (measurement_config or ROOT/'measurement_inputs.local.json').resolve()
     adapted = (WORK_ROOT/'quasar_catalogue').resolve()
@@ -72,10 +72,10 @@ def commands(stage, chance_config=None, resume=False, imaging_search_config=None
     if stage in ('all', 'vetting'):
         if pipeline == 'imaging':
             print('Imaging selection: Gaia-neighbour resolved scoring is used for threshold calibration only.', flush=True)
-        contract = [sys.executable, '-B', 'verification/verify_input_contracts.py',
+        contract = [sys.executable, '-B', 'tests/verify_input_contracts.py',
                     '--measurement-config', str(measurement_config), '--pipeline', pipeline]
-        result += [[sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'verification', '-p', 'test_*.py'],
-                   [sys.executable, '-B', 'verification/verify_redshift_uncertainty.py'],
+        result += [[sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'],
+                   [sys.executable, '-B', 'tests/verify_redshift_uncertainty.py'],
                    contract + ['--external-only'], gaia_search]
         if 'imaging' in selected:
             result.append(imaging_search)
@@ -101,7 +101,7 @@ def commands(stage, chance_config=None, resume=False, imaging_search_config=None
             result.append(command)
             if name == 'gaia_neighbour.build_measurements':
                 result.append(contract)
-        result.append([sys.executable, '-B', 'verification/verify_example_run.py', '--pipeline', pipeline])
+        result.append([sys.executable, '-B', 'tests/verify_example_run.py', '--pipeline', pipeline])
     if stage in ('all', 'chance-alignments'):
         command = [sys.executable, '-u', '-m', 'run_chance_alignments', '--config', str(chance_config.resolve())]
         if resume:

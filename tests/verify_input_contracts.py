@@ -82,7 +82,7 @@ def main():
     if missing:
         raise SystemExit(
             'Supply the external inputs and run the offline discovery stages as described '
-            'in data/README.md. Set PAPER1_INPUT_ROOT and the optional path overrides.\n'
+            'in DATA.md. Set PAPER1_INPUT_ROOT and the optional path overrides.\n'
             'Missing input files:\n' + '\n'.join(missing))
     if not args.external_only:
         summary_path = ONE_ARCSECOND_SEARCH_ROOT/'search_summary.json'

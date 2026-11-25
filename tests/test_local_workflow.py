@@ -16,7 +16,7 @@ from scripts.shared.check_local_inputs import check_inputs
 from scripts.shared.prepare_quasar_catalogue import adapt_catalogue
 from scripts.imaging.measure_morphology import measure_candidates
 from dual_agn.one_arcsecond_search import resolve_config, run_search
-from verification import test_native_measurements
+from tests import test_native_measurements
 
 
 class LocalWorkflowTests(unittest.TestCase):
