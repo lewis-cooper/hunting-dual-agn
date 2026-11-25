@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from score_controls import configure_production,score_blends
+from score_controls import configure_production,score_blends,verify_production_scorer
 from control_catalogues import read_csv
 
 
@@ -21,6 +21,7 @@ def score_worker(payload):
     args=SimpleNamespace(**arguments)
     args.output.mkdir(parents=True,exist_ok=True)
     configure_production(args)
+    verify_production_scorer(args)
     return score_blends(trials,args,{'magdep':None,'magindep':None})
 
 

@@ -165,7 +165,8 @@ def adapt_catalogue(config, output, imaging_config_path=None, quasars=None):
     (output/'one_arcsecond_search.json').write_text(json.dumps(one_config,indent=2)+'\n')
     if imaging_config_path is not None:
         imaging = imaging_config(imaging_config_path)
-        imaging['master_catalogue'] = output/'quasar_master.csv'
+        # A supplied Gaia-linked imaging master defines the coverage-table IDs.
+        # Preserve that master rather than renumbering an already supplied population.
         (output/'imaging_search.json').write_text(json.dumps(imaging, indent=2, default=str)+'\n')
     summary = dict(input_rows=len(quasars), matched_quasar_rows=int(matched.sum()),
                    unmatched_quasar_rows=int((~matched).sum()), imaging_gaia_anchors=len(master),

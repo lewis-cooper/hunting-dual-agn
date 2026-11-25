@@ -1,2 +1,0 @@
-# Optional; the local-file workflow does not require a database driver.
-psycopg[binary]>=3.1

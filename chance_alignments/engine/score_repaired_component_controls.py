@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from control_catalogues import magnitude
-from score_controls import configure_production
+from score_controls import configure_production, verify_production_scorer
 from score_controls import cached_scores
 
 
@@ -23,6 +23,7 @@ def score_worker(payload):
     arguments, input_path, cache_root, threshold, role = payload
     args = SimpleNamespace(**arguments)
     configure_production(args)
+    verify_production_scorer(args)
     from qso_pcolor.unified import UnifiedPSFModel
     models = {name: UnifiedPSFModel.load(args.models/f'20261005_{name}_qlf')
               for name in ['magdep','magindep']}
@@ -64,6 +65,7 @@ def score(args):
     os.environ['OPENBLAS_NUM_THREADS']='1'
     os.environ['OMP_NUM_THREADS']='1'
     configure_production(args)
+    scorer_provenance = verify_production_scorer(args)
     from qso_pcolor.unified import UnifiedPSFModel
     from dual_agn.score_selection import read_either_model_threshold
     root=args.output
@@ -104,6 +106,7 @@ def score(args):
     scored.to_parquet(destination,index=False,compression='zstd')
     destination.with_suffix('.json').write_text(json.dumps(dict(
         threshold=threshold,repo=str(args.repo.resolve()),models=str(args.models.resolve()),
+        scorer_provenance=scorer_provenance,
         scorer_sha256=hashlib.sha256((args.repo/'dual_agn/one_arcsecond.py').read_bytes()).hexdigest(),
         redshift_policy_sha256=hashlib.sha256((args.repo/'dual_agn/redshift_uncertainty.py').read_bytes()).hexdigest(),
         primary='actual real input primaries; no substitution of donor redshifts or primary SEDs',

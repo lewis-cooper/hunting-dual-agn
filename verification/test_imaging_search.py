@@ -220,10 +220,10 @@ class ImagingSearchTests(unittest.TestCase):
             self.assertEqual(len(Table.read(root/'work/inputs/imaging_channel.fits')),1)
 
     def test_full_runner_searches_before_prepared_input_validation(self):
-        sequence=commands('vetting',imaging_search_config=Path('search.json'),data_source='local')
+        sequence=commands('vetting',imaging_search_config=Path('search.json'))
         search=next(i for i,command in enumerate(sequence) if 'scripts.imaging.search_candidates' in command)
         prepared=next(i for i,command in enumerate(sequence)
-                      if 'verification/verify_input_contracts.py' in command and '--external-only' not in command)
+                      if 'verification/verify_input_contracts.py' in command and '--external-only' not in command and '--models-only' not in command)
         self.assertLess(search,prepared)
 
 

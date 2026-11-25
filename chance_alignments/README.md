@@ -24,7 +24,7 @@ Install the dependencies and configure the input/model paths in the
 python run_analysis.py --stage all --pipeline both --chance-config chance_alignment.local.json --resume
 ```
 
-This runs candidate acquisition and discovery, vetting/literature stages and
+This runs local candidate discovery, vetting/literature stages and
 checks first, then the control stages. The control adapter reads the generated
 imaging component/Tractor tables from the search workspace. The control
 scorers and statistical calculations are unchanged.

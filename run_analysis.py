@@ -1,4 +1,4 @@
-"""Run either candidate pipeline, or both, followed by optional control calculations."""
+"""Discover and vet candidate pairs from user-supplied local catalogues."""
 
 import argparse
 import csv
@@ -11,6 +11,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from dual_agn.settings import WORK_ROOT, OUTPUT_ROOT, FINAL_CANDIDATES_PATH
 from dual_agn.workflow import PIPELINE_CHOICES, product_names, selected_pipelines
+from dual_agn.provenance import verify_imported_scorer
+from dual_agn.progress import command_label, report_progress
 
 CALIBRATION_STAGES = [
     'gaia_neighbour.build_measurements', 'gaia_neighbour.prepare_inputs',
@@ -31,41 +33,28 @@ VETTING_STAGES = [
 
 
 def commands(stage, chance_config=None, resume=False, imaging_search_config=None,
-             one_arcsecond_search_config=None, measurement_config=None,
-             quasar_catalogue_config=None, wsdb_config=None, data_source='wsdb', pipeline='both'):
+             measurement_config=None, quasar_catalogue_config=None, pipeline='both',
+             one_arcsecond_search_config=None):
     selected = selected_pipelines(pipeline)
     if stage in ('all', 'chance-alignments'):
         if chance_config is None:
             raise ValueError('Supply --chance-config when including chance alignments.')
         if pipeline != 'both':
             raise ValueError('The independent chance-alignment experiment compares both pipelines; use --pipeline both, or --stage vetting for a single candidate pipeline.')
-    if data_source not in ('wsdb', 'local'):
-        raise ValueError('Choose data_source wsdb or local')
-    if data_source == 'local' and wsdb_config is not None:
-        raise ValueError('--wsdb-config cannot be used with --data-source local')
+    if stage == 'chance-alignments':
+        command = [sys.executable, '-u', '-m', 'run_chance_alignments', '--config', str(chance_config.resolve())]
+        return [command + (['--resume'] if resume else [])]
+    if stage == 'discovery' and pipeline == 'imaging':
+        command = [sys.executable, '-u', '-m', 'scripts.imaging.search_candidates',
+            '--config', str((imaging_search_config or ROOT/'imaging_search.local.json').resolve())]
+        return [command + (['--resume'] if resume else [])]
     result = []
-    if data_source == 'wsdb' and stage != 'chance-alignments':
-        if any(value is not None for value in (imaging_search_config, one_arcsecond_search_config,
-                                               measurement_config, quasar_catalogue_config)):
-            raise ValueError('WSDB is the default. Set paths inside its config, or choose --data-source local; do not combine WSDB with local input CLI options')
-        wsdb_config = (wsdb_config or ROOT/'wsdb_inputs.local.json').resolve()
-        generated = (WORK_ROOT/'wsdb_inputs').resolve()
-        query = [sys.executable, '-u', '-m', 'scripts.shared.acquire_inputs', '--config', str(wsdb_config)]
-        if stage in ('one-arcsecond-search', 'imaging-search'):
-            query += ['--stage', stage]
-        elif pipeline != 'both':
-            query += ['--pipeline', pipeline]
-        if resume:
-            query.append('--resume')
-        if stage in ('all', 'vetting'):
-            result.append([sys.executable, '-B', 'verification/verify_input_contracts.py', '--models-only'])
-        result.append(query)
-        imaging_search_config = generated/'imaging_search.json'
-        one_arcsecond_search_config = generated/'one_arcsecond_search.json'
-        measurement_config = generated/'measurement_inputs.json'
+    if stage in ('all', 'vetting'):
+        result.append([sys.executable, '-B', 'verification/verify_input_contracts.py', '--models-only'])
+    quasar_catalogue_config = (quasar_catalogue_config or ROOT/'quasar_catalogue.local.json').resolve()
     measurement_config = (measurement_config or ROOT/'measurement_inputs.local.json').resolve()
-    if quasar_catalogue_config is not None:
-        adapted = (WORK_ROOT/'quasar_catalogue').resolve()
+    adapted = (WORK_ROOT/'quasar_catalogue').resolve()
+    if one_arcsecond_search_config is None:
         result.append([sys.executable, '-u', '-m', 'scripts.shared.prepare_quasar_catalogue',
             '--config', str(quasar_catalogue_config.resolve()), '--pipeline', pipeline,
             '--imaging-search-config', str((imaging_search_config or ROOT/'imaging_search.local.json').resolve())])
@@ -75,13 +64,11 @@ def commands(stage, chance_config=None, resume=False, imaging_search_config=None
         '--config', str((one_arcsecond_search_config or ROOT/'one_arcsecond_search.local.json').resolve())]
     imaging_search = [sys.executable, '-u', '-m', 'scripts.imaging.search_candidates',
         '--config', str((imaging_search_config or ROOT/'imaging_search.local.json').resolve())]
-    if resume or data_source == 'wsdb':
+    if resume:
         gaia_search.append('--resume')
         imaging_search.append('--resume')
-    if stage == 'one-arcsecond-search':
-        return result + [gaia_search]
-    if stage == 'imaging-search':
-        return result + [imaging_search]
+    if stage == 'discovery':
+        return result + ([gaia_search] if pipeline == 'gaia_neighbour' else [imaging_search] if pipeline == 'imaging' else [gaia_search, imaging_search])
     if stage in ('all', 'vetting'):
         if pipeline == 'imaging':
             print('Imaging selection: Gaia-neighbour resolved scoring is used for threshold calibration only.', flush=True)
@@ -126,32 +113,43 @@ def commands(stage, chance_config=None, resume=False, imaging_search_config=None
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pipeline', choices=PIPELINE_CHOICES, default='both', help='Candidate pipeline (default: both). Imaging calibrates on Gaia neighbours automatically.')
-    parser.add_argument('--stage', choices=['all', 'vetting', 'one-arcsecond-search', 'imaging-search', 'chance-alignments'], help='Default: vetting, or all when --chance-config is supplied')
+    parser.add_argument('--stage', choices=['all', 'vetting', 'discovery', 'chance-alignments'], help='Default: vetting, or all when --chance-config is supplied')
     parser.add_argument('--chance-config', type=Path)
     parser.add_argument('--imaging-search-config', type=Path)
-    parser.add_argument('--one-arcsecond-search-config', type=Path)
     parser.add_argument('--quasar-catalogue-config', type=Path)
+    parser.add_argument('--one-arcsecond-search-config', type=Path,
+                        help='Supplied quasar–Gaia associations and neighbour counts; skips raw-Gaia catalogue adaptation')
     parser.add_argument('--measurement-config', type=Path)
-    parser.add_argument('--data-source', choices=['wsdb', 'local'], default='wsdb')
-    parser.add_argument('--wsdb-config', type=Path)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--check-inputs', action='store_true', help='Check supplied local files without searching or scoring')
     args = parser.parse_args()
     args.stage = args.stage or ('all' if args.chance_config else 'vetting')
     try:
-        sequence = commands(args.stage, args.chance_config, args.resume, args.imaging_search_config,
-            args.one_arcsecond_search_config, args.measurement_config, args.quasar_catalogue_config,
-            args.wsdb_config, args.data_source, args.pipeline)
+        if args.check_inputs:
+            from scripts.shared.check_local_inputs import check_inputs
+            check_inputs(args.quasar_catalogue_config or ROOT/'quasar_catalogue.local.json',
+                args.measurement_config or ROOT/'measurement_inputs.local.json',
+                args.imaging_search_config or ROOT/'imaging_search.local.json', args.pipeline, args.stage,
+                one_arcsecond_search_config=args.one_arcsecond_search_config)
+            return
+        sequence = commands(args.stage, chance_config=args.chance_config, resume=args.resume,
+            imaging_search_config=args.imaging_search_config, measurement_config=args.measurement_config,
+            quasar_catalogue_config=args.quasar_catalogue_config, pipeline=args.pipeline,
+            one_arcsecond_search_config=args.one_arcsecond_search_config)
         if not args.dry_run and args.stage in ('all', 'vetting'):
             inactive = product_names('both') - product_names(args.pipeline)
             if any((OUTPUT_ROOT/name).exists() for name in inactive):
                 raise ValueError('This output folder contains products from another pipeline. Set PAPER1_OUTPUT_ROOT, PAPER1_WORK_ROOT and PAPER1_FIGURE_ROOT to a separate run location.')
-    except ValueError as error:
+    except (ValueError, OSError) as error:
         parser.error(str(error))
-    for command in sequence:
+    if not args.dry_run and args.stage in ('all', 'vetting', 'chance-alignments'):
+        verify_imported_scorer()
+    for number, command in enumerate(sequence, 1):
         print('Running:', ' '.join(command), flush=True)
         if not args.dry_run:
-            subprocess.run(command, cwd=ROOT, check=True)
+            with report_progress(f'Analysis {number}/{len(sequence)}: {command_label(command)}'):
+                subprocess.run(command, cwd=ROOT, check=True)
     if not args.dry_run and args.stage in ('all', 'vetting'):
         with FINAL_CANDIDATES_PATH.open(newline='') as stream:
             count = sum(1 for _ in csv.DictReader(stream))

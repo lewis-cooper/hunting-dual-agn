@@ -5,10 +5,12 @@ from dual_agn.settings import ONE_ROOT, OUTPUT_ROOT, THRESHOLD_CALIBRATION_PATH,
 from dual_agn.score_selection import eligible_model_scores
 from sklearn.mixture import GaussianMixture
 from scipy.stats import chi2, norm
+from dual_agn.provenance import verify_imported_scorer
 import argparse
 parser = argparse.ArgumentParser(description='Calibrate the shared resolved-score threshold.')
 parser.add_argument('--previous-threshold', type=float, default=-6.70)
 arguments = parser.parse_args()
+scorer_provenance = verify_imported_scorer()
 ranked = pd.read_csv(ONE_ROOT / 'ranked_resolved.csv', dtype=IDENTIFIER_DTYPES, float_precision='round_trip')
 model_scores = eligible_model_scores(ranked, 'eligible', 'log_r_per_unit_z')
 ranked['either_model_log_r_per_unit_z'] = model_scores.max(axis=1)
@@ -115,7 +117,8 @@ threshold_calibration = {
     'model': 'either',
     'calibration_statistic': 'maximum finite eligible log R per unit z across both models',
     'sample_unit': 'anchor-entry',
-    'gaussian_population_labels_are_proxies': True
+    'gaussian_population_labels_are_proxies': True,
+    'scorer_provenance': scorer_provenance
 }
 ONE_ROOT.mkdir(parents=True, exist_ok=True)
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)

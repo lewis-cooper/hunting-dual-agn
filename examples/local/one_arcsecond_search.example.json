@@ -1,0 +1,7 @@
+{
+  "input_mode": "saved_qualifying_matches",
+  "quasar_gaia_matches": ["data/inputs/quasar_gaia_cnt1_gt1_matches.csv"],
+  "gaia_neighbour_counts": "data/inputs/gaia_neighbour_counts.csv",
+  "gaia_radius_arcsec": 1.0,
+  "dedupe_radius_arcsec": 1.0
+}

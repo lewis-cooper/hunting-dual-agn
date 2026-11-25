@@ -4,16 +4,16 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dual_agn.settings import (DUSTMAP_ROOT, IMAGING_MORPHOLOGY_PATH, INPUT_ROOT,
                       IMAGING_INPUT_ROOT, IMAGING_SEARCH_ROOT,
                       ONE_ARCSECOND_PARENT_PATH, ONE_ARCSECOND_SEARCH_ROOT,
-                      MODEL_BUNDLES, MODEL_REVISION, PACKAGE_ROOT,
+                      MODEL_BUNDLES,
                       ONE_INPUT_ROOT, ROOT, survey_products)
 from dual_agn.workflow import PIPELINE_CHOICES
+from dual_agn.provenance import verify_imported_scorer
 
 
 def sha256(path):
@@ -22,6 +22,7 @@ def sha256(path):
 
 
 def verify_models():
+    verify_imported_scorer()
     expected = {
         'magdep': 'e6ff672f2cfae305a5c5e792197f9740a2695cc1dd77290ad1e9376488cb59c6',
         'magindep': '3b92fe80e1b7054da02830a16e013b6f7a06c16a6f2087d0360d668ae8fab6bb',
@@ -29,9 +30,6 @@ def verify_models():
     for name, path in MODEL_BUNDLES.items():
         if not (path/'manifest.json').is_file() or sha256(path/'manifest.json') != expected[name]:
             raise SystemExit(f'Missing or unexpected model manifest at {path}; follow README.md before acquiring survey data')
-    revision = subprocess.check_output(['git','-C',str(PACKAGE_ROOT),'rev-parse','HEAD'],text=True).strip()
-    if revision != MODEL_REVISION:
-        raise SystemExit(f'Expected model code at {MODEL_REVISION}, found {revision}')
     for hemisphere in ('ngp','sgp'):
         path = DUSTMAP_ROOT/f'sfd/SFD_dust_4096_{hemisphere}.fits'
         if not path.is_file():

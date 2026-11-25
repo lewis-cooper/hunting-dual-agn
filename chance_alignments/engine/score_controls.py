@@ -141,6 +141,11 @@ def configure_production(args):
     config.load()
 
 
+def verify_production_scorer(args):
+    from dual_agn.provenance import verify_imported_scorer
+    return verify_imported_scorer(package_root=args.models.resolve().parents[1])
+
+
 def score_blends(trials,args,models):
     from qso_pcolor import Photometry
     from qso_pcolor.blend import BlendModel

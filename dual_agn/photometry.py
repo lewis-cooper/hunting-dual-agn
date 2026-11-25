@@ -41,6 +41,8 @@ def file_sha256(path):
 
 def configure_dustmaps():
     """Keep the per-run dustmap configuration with intermediate working files."""
+    from dual_agn.provenance import verify_imported_scorer
+    verify_imported_scorer()
     from dustmaps.config import config
     from dual_agn.settings import DUSTMAP_ROOT, WORK_ROOT
     WORK_ROOT.mkdir(parents=True, exist_ok=True)

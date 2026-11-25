@@ -53,6 +53,23 @@ class OneArcsecondDiscoveryTests(unittest.TestCase):
         parent = deduplicate_quasars(nearest, 1.)
         self.assertEqual(parent.gaia_edr3_cnt1.tolist(), [2, 3])
 
+    def test_nonprimary_desi_qso_records_are_not_excluded(self):
+        matches = self.matches().loc[lambda frame: frame.qso_catalog.eq('DESI_DR1_QSO')]
+        matches = matches.assign(qso_zcat_primary=False, qso_main_primary=False,
+                                 qso_zwarn=0, qso_spectype='QSO')
+        _, nearest = select_neighbour_matches(matches, self.counts(), 1.)
+        parent = deduplicate_quasars(nearest, 1.)
+        self.assertEqual(parent.primary_qso_objid.tolist(), ['2'])
+        self.assertFalse(parent.qso_zcat_primary.any())
+
+    def test_grouping_uses_survey_positions_even_when_gaia_positions_would_merge(self):
+        matches = self.matches().iloc[[0, 2]].copy()
+        matches['qso_ra'] = [10., 10. + 1.15/3600.]
+        matches['gaia_ra'] = [10., 10. + .99/3600.]
+        counts = self.counts().assign(gaia_edr3_cnt1=2)
+        _, nearest = select_neighbour_matches(matches, counts, 1.)
+        self.assertEqual(len(deduplicate_quasars(nearest, 1.)), 2)
+
     def test_cross_catalogue_duplicates_use_historical_primary_priority(self):
         parent = self.parent()
         self.assertEqual(len(parent), 2)
@@ -184,12 +201,16 @@ class OneArcsecondDiscoveryTests(unittest.TestCase):
             self.assertEqual(summary['counts']['parent_entries'], 2)
 
     def test_full_workflow_discovers_both_samples_before_preparation(self):
-        sequence = commands('vetting', one_arcsecond_search_config=Path('gaia_search.json'), data_source='local')
+        sequence = commands('vetting', quasar_catalogue_config=Path('quasars.json'))
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
         self.assertLess(modules.index('scripts.gaia_neighbour.search_candidates'),
                         modules.index('scripts.gaia_neighbour.prepare_inputs'))
-        self.assertEqual(sequence[3][-2:], ['--config', str(Path('gaia_search.json').resolve())])
-        self.assertEqual(len(commands('one-arcsecond-search', data_source='local')), 1)
+        search=next(command for command in sequence if 'scripts.gaia_neighbour.search_candidates' in command)
+        self.assertEqual(Path(search[search.index('--config')+1]).name,'one_arcsecond_search.json')
+        discovery=commands('discovery',pipeline='gaia_neighbour')
+        self.assertEqual(len(discovery),2)
+        self.assertIn('scripts.shared.prepare_quasar_catalogue',discovery[0])
+        self.assertIn('scripts.gaia_neighbour.search_candidates',discovery[1])
 
 
 if __name__ == '__main__':

@@ -20,7 +20,7 @@ class RootEntrypointTests(unittest.TestCase):
                     completed = subprocess.run([sys.executable, '-B', str(ROOT/'run_analysis.py'),
                         '--pipeline', pipeline, '--dry-run'], cwd=directory, env=environment,
                         capture_output=True, text=True, check=True)
-                    self.assertIn(str(ROOT/'wsdb_inputs.local.json'), completed.stdout)
+                    self.assertIn(str(ROOT/'quasar_catalogue.local.json'), completed.stdout)
                     self.assertIn('scripts.shared.combine_candidates', completed.stdout)
 
     def test_control_runner_can_be_invoked_from_another_directory(self):

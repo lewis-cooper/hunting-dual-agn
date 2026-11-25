@@ -119,7 +119,7 @@ class NativeMeasurementTests(unittest.TestCase):
             self.assertFalse(result.ps1_r_band_quality.iloc[0])
 
     def test_runner_generates_measurements_before_validation_and_scoring(self):
-        sequence = commands('vetting', measurement_config=Path('native.json'), data_source='local')
+        sequence = commands('vetting', measurement_config=Path('native.json'))
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
         self.assertLess(modules.index('scripts.gaia_neighbour.build_measurements'), modules.index('scripts.gaia_neighbour.prepare_inputs'))
         self.assertLess(modules.index('scripts.imaging.measure_morphology'), modules.index('scripts.imaging.select_candidates'))

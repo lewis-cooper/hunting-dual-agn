@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from dual_agn.settings import DUSTMAP_ROOT, INPUT_ROOT, IMAGING_INPUT_ROOT, MODEL_ROOT, OUTPUT_ROOT, ROOT, WORK_ROOT
+from dual_agn.provenance import verify_imported_scorer
 
 
 def resolve_config(path):
@@ -101,6 +102,8 @@ def prepare_runtime(config):
 
 
 def run_full(config, stage='all', resume=False, dry_run=False):
+    if not dry_run:
+        verify_imported_scorer()
     workspace = config['workspace_directory']
     if dry_run:
         print('Prepare controls from:', config['products_directory'], 'and', config['vetting_work_directory'])
