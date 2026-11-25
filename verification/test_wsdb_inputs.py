@@ -21,7 +21,7 @@ from dual_agn.one_arcsecond_search import resolve_config as one_config, run_sear
 from scripts.gaia_neighbour.build_measurements import build_measurements
 from scripts.shared.acquire_inputs import absolute_paths, prepare_inputs, validate_sources
 from scripts.shared.prepare_quasar_catalogue import adapt_catalogue
-from scripts.run_analysis import commands
+from run_analysis import commands
 from dual_agn.wsdb_inputs import WsdbCatalogues, WsdbInputError, source_tables
 from dual_agn.settings import survey_products
 
@@ -170,7 +170,7 @@ class WsdbWorkflowTests(unittest.TestCase):
             commands('vetting', data_source='local', wsdb_config=Path('w.json'))
         controls = commands('chance-alignments', chance_config=Path('controls.json'))
         self.assertEqual(len(controls), 1)
-        self.assertIn('scripts.run_chance_alignments', controls[0])
+        self.assertIn('run_chance_alignments', controls[0])
 
     def test_one_arcsecond_only_does_not_query_imaging_or_load_its_inputs(self):
         with TemporaryDirectory() as directory:

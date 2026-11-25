@@ -14,7 +14,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dual_agn.one_arcsecond_search import (deduplicate_quasars, match_local_gaia, resolve_config,
     run_search, select_neighbour_matches, validate_measurement_identities)
-from scripts.run_analysis import commands
+from run_analysis import commands
 
 
 class OneArcsecondDiscoveryTests(unittest.TestCase):

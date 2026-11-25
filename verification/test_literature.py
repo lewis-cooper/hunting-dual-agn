@@ -9,7 +9,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dual_agn.literature import annotate_candidates, match_references, read_references
-from scripts.run_analysis import VETTING_STAGES
+from run_analysis import VETTING_STAGES
 from dual_agn.settings import LITERATURE_ROOT
 
 

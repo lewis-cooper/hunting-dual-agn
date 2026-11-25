@@ -7,8 +7,8 @@ from tempfile import TemporaryDirectory
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.run_analysis import VETTING_STAGES, commands
-from scripts.run_chance_alignments import resolve_config, source_paths
+from run_analysis import VETTING_STAGES, commands
+from run_chance_alignments import resolve_config, source_paths
 
 
 class ChanceAlignmentIntegrationTests(unittest.TestCase):
@@ -23,17 +23,17 @@ class ChanceAlignmentIntegrationTests(unittest.TestCase):
     def test_sequential_runner_places_controls_after_vetting_verification(self):
         sequence = commands('all', Path('controls.json'), resume=True)
         modules = [command[command.index('-m')+1] for command in sequence if '-m' in command]
-        self.assertEqual([name for name in modules if name.startswith('scripts.')][:-1],
+        self.assertEqual([name for name in modules if name.startswith('scripts.')],
                          ['scripts.shared.acquire_inputs']+['scripts.'+name for name in VETTING_STAGES])
         self.assertIn('verification/verify_example_run.py', sequence[-2])
         self.assertEqual(sequence[-2][-2:], ['--pipeline', 'both'])
-        self.assertEqual(modules[-1], 'scripts.run_chance_alignments')
+        self.assertEqual(modules[-1], 'run_chance_alignments')
         self.assertIn('--resume', sequence[-1])
 
     def test_vetting_only_needs_no_control_catalogue_config(self):
         sequence = commands('vetting')
         self.assertTrue(sequence)
-        self.assertFalse(any('scripts.run_chance_alignments' in command for command in sequence))
+        self.assertFalse(any('run_chance_alignments' in command for command in sequence))
 
     def test_all_stages_require_an_explicit_control_config(self):
         with self.assertRaisesRegex(ValueError, 'chance-config'):

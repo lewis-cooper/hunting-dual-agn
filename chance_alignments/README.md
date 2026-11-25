@@ -3,8 +3,8 @@
 This package tests the acceptance of unrelated source pairs using the
 production QSO scorers. The modules in `engine/` implement catalogue queries,
 matching, scoring and statistical summaries. `prepare_inputs.py` prepares the
-control inputs, and `scripts/run_chance_alignments.py` and
-`scripts/run_analysis.py` run the calculations in sequence. Generated controls
+control inputs, and `run_chance_alignments.py` and
+`run_analysis.py` run the calculations in sequence. Generated controls
 and outputs are kept in a separate ignored workspace.
 
 The measured quantity is **P(pass | unrelated matched control, known outcome)**,
@@ -21,7 +21,7 @@ Install the dependencies and configure the input/model paths in the
 `chance_alignment.local.json` and supply the full quasar master and Quaia paths.
 
 ```sh
-python -m scripts.run_analysis --stage all --pipeline both --chance-config chance_alignment.local.json --resume
+python run_analysis.py --stage all --pipeline both --chance-config chance_alignment.local.json --resume
 ```
 
 This runs candidate acquisition and discovery, vetting/literature stages and
@@ -32,11 +32,11 @@ scorers and statistical calculations are unchanged.
 ## Control stages
 
 ```sh
-python -m scripts.run_chance_alignments --config chance_alignment.local.json --stage prepare
-python -m scripts.run_chance_alignments --config chance_alignment.local.json --stage fetch --resume
-python -m scripts.run_chance_alignments --config chance_alignment.local.json --stage components --resume
-python -m scripts.run_chance_alignments --config chance_alignment.local.json --stage blends --resume
-python -m scripts.run_chance_alignments --config chance_alignment.local.json --stage report
+python run_chance_alignments.py --config chance_alignment.local.json --stage prepare
+python run_chance_alignments.py --config chance_alignment.local.json --stage fetch --resume
+python run_chance_alignments.py --config chance_alignment.local.json --stage components --resume
+python run_chance_alignments.py --config chance_alignment.local.json --stage blends --resume
+python run_chance_alignments.py --config chance_alignment.local.json --stage report
 ```
 
 Omit `--stage` to run all stages. `--dry-run` shows the connection without querying
@@ -87,7 +87,7 @@ changed input contents or settings require a new `workspace_directory`.
 With the separately supplied control-data archive unpacked:
 
 ```sh
-python -m scripts.run_chance_alignments --replay-data /path/to/control_data --verify-reference
+python run_chance_alignments.py --replay-data /path/to/control_data --verify-reference
 python -m unittest discover -s verification -p 'test_*.py'
 ```
 
@@ -97,7 +97,7 @@ reference. It needs no production model assets or survey queries. A fresh rebuil
 does not need this archive: its input descriptors are generated from vetting and
 its field lists are sampled from the supplied full catalogues.
 
-The public control entry point is `scripts/run_chance_alignments.py`.
+The public control entry point is `run_chance_alignments.py`.
 `run_controls.py` implements its execution sequence and `reproduce_results.py`
 implements offline replay.
 

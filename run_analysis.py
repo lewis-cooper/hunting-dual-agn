@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from dual_agn.settings import WORK_ROOT, OUTPUT_ROOT, FINAL_CANDIDATES_PATH
@@ -116,7 +116,7 @@ def commands(stage, chance_config=None, resume=False, imaging_search_config=None
                 result.append(contract)
         result.append([sys.executable, '-B', 'verification/verify_example_run.py', '--pipeline', pipeline])
     if stage in ('all', 'chance-alignments'):
-        command = [sys.executable, '-u', '-m', 'scripts.run_chance_alignments', '--config', str(chance_config.resolve())]
+        command = [sys.executable, '-u', '-m', 'run_chance_alignments', '--config', str(chance_config.resolve())]
         if resume:
             command.append('--resume')
         result.append(command)

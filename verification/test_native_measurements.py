@@ -17,7 +17,7 @@ from dual_agn.imaging_morphology import measure_image
 from dual_agn.measurement_inputs import read_config, read_local_sources, require_coverage
 from dual_agn.one_arcsecond_measurements import (build_components, build_system_measurements,
                                        build_survey_photometry)
-from scripts.run_analysis import commands
+from run_analysis import commands
 from scripts.gaia_neighbour.build_measurements import build_measurements
 from scripts.imaging.measure_morphology import measure_candidates
 from dual_agn.settings import survey_products

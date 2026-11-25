@@ -21,7 +21,7 @@ from dual_agn.imaging_search.pairs import (build_candidate_summary, build_compon
                                  local_color_stats, match_gaia_components, pm_sig,
                                  require_gaia_coverage)
 from dual_agn.imaging_search.pipeline import GENERATED_INPUTS, run_search
-from scripts.run_analysis import commands
+from run_analysis import commands
 
 
 class ImagingSearchTests(unittest.TestCase):

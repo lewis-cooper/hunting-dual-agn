@@ -2,7 +2,7 @@
 
 Discover close quasar pairs from a supplied quasar catalogue, score their
 photometry, apply the selection rules and remove confirmed literature
-contaminants. The main entry point is `scripts/run_analysis.py`. WSDB is the
+contaminants. The main entry point is `run_analysis.py`. WSDB is the
 default catalogue source; equivalent local survey extracts support offline runs.
 
 The workflow calculates Gaia neighbour counts, discovers the one-arcsecond and
@@ -15,7 +15,8 @@ precedes visual inspection, which is performed outside this repository.
 | Directory | Contents |
 | --- | --- |
 | `dual_agn/` | Shared acquisition, discovery, measurement, scoring and selection code |
-| `scripts/run_analysis.py` | Main entry point for either pipeline or both |
+| `run_analysis.py` | Main entry point for either pipeline or both |
+| `run_chance_alignments.py` | Run or replay the independent control experiment |
 | `scripts/gaia_neighbour/` | Gaia companion discovery, resolved/blended scoring and selection |
 | `scripts/imaging/` | Imaging pair discovery, component scoring, morphology and selection |
 | `scripts/shared/` | Catalogue acquisition, input mapping, literature matching and final outputs |
@@ -91,15 +92,15 @@ services. Failed queries stop acquisition and are never recorded as empty cones.
 ## Run to final candidates
 
 ```sh
-python -m scripts.run_analysis
+python run_analysis.py
 ```
 
 The default is candidate vetting with both pipelines. Select a pipeline with:
 
 ```sh
-python -m scripts.run_analysis --pipeline gaia_neighbour
-python -m scripts.run_analysis --pipeline imaging
-python -m scripts.run_analysis --pipeline both
+python run_analysis.py --pipeline gaia_neighbour
+python run_analysis.py --pipeline imaging
+python run_analysis.py --pipeline both
 ```
 
 `gaia_neighbour` includes both the resolved and unresolved one-arcsecond routes.
@@ -129,14 +130,14 @@ Keep a test run separate with:
 export PAPER1_OUTPUT_ROOT=/path/to/test/products
 export PAPER1_WORK_ROOT=/path/to/test/work
 export PAPER1_FIGURE_ROOT=/path/to/test/figures
-python -m scripts.run_analysis --stage vetting --wsdb-config /path/to/test/wsdb_inputs.local.json
+python run_analysis.py --stage vetting --wsdb-config /path/to/test/wsdb_inputs.local.json
 ```
 
 Discovery can also be run alone:
 
 ```sh
-python -m scripts.run_analysis --stage one-arcsecond-search
-python -m scripts.run_analysis --stage imaging-search
+python run_analysis.py --stage one-arcsecond-search
+python run_analysis.py --stage imaging-search
 ```
 
 The one-arcsecond-only command retrieves Gaia data without supplementary
@@ -150,7 +151,7 @@ Copy the three templates from `examples/local/` into the repository root as
 and image locations, then run:
 
 ```sh
-python -m scripts.run_analysis --stage vetting --data-source local \
+python run_analysis.py --stage vetting --data-source local \
   --quasar-catalogue-config quasar_catalogue.local.json \
   --imaging-search-config imaging_search.local.json \
   --measurement-config measurement_inputs.local.json
@@ -207,13 +208,13 @@ and set its full master and published Quaia paths. Run candidate selection
 followed by the independent control experiment with:
 
 ```sh
-python -m scripts.run_analysis --stage all --chance-config chance_alignment.local.json
+python run_analysis.py --stage all --chance-config chance_alignment.local.json
 ```
 
 To run controls after candidate selection:
 
 ```sh
-python -m scripts.run_chance_alignments --config chance_alignment.local.json --resume
+python run_chance_alignments.py --config chance_alignment.local.json --resume
 ```
 
 Controls estimate method false-positive rates from input populations, rather

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from dual_agn.workflow import product_names
-from scripts.run_analysis import commands
+from run_analysis import commands
 from scripts.shared import combine_candidates as catalogue
 from scripts.shared import crossmatch_literature as literature
 from verification import test_literature
