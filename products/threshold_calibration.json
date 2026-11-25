@@ -7,16 +7,22 @@
   "contour_probability": 0.68,
   "beta": 1.0,
   "maximum_f_beta": 0.7512282974043532,
-  "adopted_low_pm_proxy_retention": 0.8714106375413297,
+  "adopted_low_pm_proxy_retention": 0.8714106375413299,
   "adopted_low_pm_proxy_share": 0.6601783700056522,
   "adopted_fit_systems_retained": 77,
   "search_interval": [
     -7.834124332026706,
-    -2.5751000880827384
+    -2.5751000880827393
   ],
   "grid_points": 2001,
   "model": "either",
   "calibration_statistic": "maximum finite eligible log R per unit z across both models",
   "sample_unit": "anchor-entry",
-  "gaussian_population_labels_are_proxies": true
+  "gaussian_population_labels_are_proxies": true,
+  "scorer_provenance": {
+    "package": "qso_pcolor",
+    "revision": "dbc392623d27e22744d5224f9f1a3fd52f6230a8",
+    "clean_checkout": true,
+    "import_relative_path": "src/qso_pcolor/__init__.py"
+  }
 }

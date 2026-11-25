@@ -39,6 +39,7 @@ def imaging_scores():
     rows = []
     for index, ra in enumerate((10., 30.)):
         rows.append(dict(qso_parent_index=index, joint_final_pass=True,
+            n_psf_components_within_aperture=3+index,
             candidate_tier='two_gaia', sdss_name=f'image{index}', adopted_redshift=1.,
             adopted_redshift_catalogue='SDSS_DR16Q', adopted_redshift_error=0.,
             secondary_pm_significance=0., secondary_pm_missing=False, secondary_pm_pass=True,
@@ -131,6 +132,10 @@ class PipelineSelectionTests(unittest.TestCase):
             self.assertTrue(final.selected_by_imaging.all())
         else:
             self.assertEqual(int(combined.selected_by_both_searches.sum()),1)
+            self.assertEqual(combined.loc[combined.selected_by_both_searches,
+                                         'n_psf_components_within_aperture'].iloc[0], 3)
+            self.assertTrue(combined.loc[~combined.selected_by_imaging,
+                                        'n_psf_components_within_aperture'].isna().all())
 
     def test_each_mode_assembles_only_requested_candidates_and_removes_confirmed_lenses(self):
         for pipeline in ('both', 'gaia_neighbour', 'imaging'):

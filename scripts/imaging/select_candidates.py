@@ -7,6 +7,7 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from dual_agn.settings import *
 from dual_agn.photometry import read_fits
+from dual_agn.imaging import imaging_pair_quality, validate_component_photometry
 from dual_agn.score_selection import (MODELS, build_secondary_pm_flags, has_two_distinct_gaia_sources,
                              imaging_model_scores, read_either_model_threshold)
 log_r_per_unit_z_threshold = read_either_model_threshold(THRESHOLD_CALIBRATION_PATH)
@@ -21,6 +22,15 @@ imaging_components = pd.read_csv(
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )
+validate_component_photometry(imaging_scores, imaging_components)
+component_quality = imaging_pair_quality(imaging_components).reindex(imaging_scores.qso_parent_index)
+component_quality.index = imaging_scores.index
+quality_columns = component_quality.add_prefix('both_components_')
+imaging_scores = pd.concat([
+    imaging_scores.drop(columns=quality_columns.columns, errors='ignore'), quality_columns
+], axis=1).copy()
+imaging_quality_pass = component_quality.all(axis=1)
+imaging_scores['joint_quality_pass'] = imaging_quality_pass
 imaging_upstream = pd.read_csv(IMAGING_ROOT / 'upstream_cut_flow.csv', float_precision='round_trip')
 morphology = pd.read_csv(IMAGING_MORPHOLOGY_PATH, float_precision='round_trip')
 imaging_scores = imaging_scores.drop(
@@ -49,7 +59,7 @@ model_scores = imaging_model_scores(imaging_scores)
 imaging_scores['minimum_component_log_r_either'] = model_scores.max(axis=1)
 for model in MODELS:
     imaging_scores[f'passes_pair_score_{model}'] = model_scores[model].ge(log_r_per_unit_z_threshold)
-imaging_score_pass = imaging_scores.minimum_component_log_r_either.ge(log_r_per_unit_z_threshold)
+imaging_score_pass = imaging_quality_pass & imaging_scores.minimum_component_log_r_either.ge(log_r_per_unit_z_threshold)
 imaging_pm_pass = imaging_score_pass & imaging_scores.secondary_pm_pass
 pre_morphology_pass = imaging_pm_pass
 morphology_available = np.isfinite(imaging_scores.r_perp_sigma_ratio)
@@ -116,8 +126,7 @@ for column, label in [
     ('latitude_pass', 'Both components: |b| >= 25 degrees'),
     ('psf_pass', 'Both components: PSF morphology')
 ]:
-    both_pass = imaging_components.groupby('qso_parent_index')[column].all()
-    cumulative_imaging &= imaging_scores.qso_parent_index.map(both_pass).fillna(False)
+    cumulative_imaging &= imaging_scores[f'both_components_{column}']
     imaging_count_rows.append(imaging_counts(label, cumulative_imaging))
 cumulative_imaging &= imaging_scores[[f'both_components_eligible_{model}' for model in MODELS]].eq(True).any(axis=1)
 imaging_count_rows.append(imaging_counts('Remaining eligibility requirements met by both components in either model', cumulative_imaging))
@@ -135,12 +144,14 @@ assert cumulative_imaging.equals(imaging_final_pass), 'Imaging cutflow and adopt
 imaging_cutflow[['One-Gaia', 'Two-Gaia', 'Total']] = imaging_cutflow[['One-Gaia', 'Two-Gaia', 'Total']].astype('Int64')
 imaging_scores['selection_status'] = np.select(
     [
+        ~imaging_quality_pass,
         ~imaging_score_pass,
         imaging_score_pass & ~imaging_pm_pass,
         pre_morphology_pass & ~morphology_available,
         pre_morphology_pass & morphology_available & ~imaging_morphology_pass
     ],
     [
+        'component_quality_rejected',
         'score_rejected_or_ineligible',
         'secondary_pm_rejected',
         'morphology_unmeasurable',

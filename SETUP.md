@@ -167,7 +167,7 @@ git push
 ```
 
 Commit products and figures together after the run has completed and its outputs
-have been checked. The historical snapshot currently published is described in
+have been checked. The published run is described in
 [PROVENANCE.md](PROVENANCE.md).
 
 ## Optional method controls

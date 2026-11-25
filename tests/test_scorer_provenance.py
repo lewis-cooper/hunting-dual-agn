@@ -1,6 +1,7 @@
 """Prevent a shadow import, a newer scorer or local scorer edits from being used."""
 
 from pathlib import Path
+import json
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
@@ -10,6 +11,28 @@ from dual_agn import provenance
 
 
 class ScorerProvenanceTests(unittest.TestCase):
+    def test_scoring_records_verified_provenance_in_working_directory(self):
+        from dual_agn import settings
+        from dual_agn.photometry import configure_dustmaps
+        record = dict(package='qso_pcolor', revision=provenance.MODEL_REVISION,
+                      clean_checkout=True, import_relative_path='src/qso_pcolor/__init__.py')
+        with TemporaryDirectory() as directory, \
+             patch.object(provenance, 'verify_imported_scorer', return_value=record), \
+             patch('dustmaps.config.config'), \
+             patch.multiple(settings, WORK_ROOT=Path(directory), DUSTMAP_ROOT=Path(directory)/'maps'):
+            configure_dustmaps()
+            self.assertEqual(json.loads((Path(directory)/'scorer_provenance.json').read_text()), record)
+
+    def test_blend_workers_verify_their_actual_import_before_loading_dustmaps(self):
+        from scripts.gaia_neighbour.score_unresolved import load_worker_dustmaps
+        with patch('dual_agn.provenance.verify_imported_scorer',
+                   side_effect=RuntimeError('wrong worker import')) as verify, \
+             patch('dustmaps.config.config') as dustmaps:
+            with self.assertRaisesRegex(RuntimeError, 'wrong worker import'):
+                load_worker_dustmaps()
+            verify.assert_called_once_with()
+            dustmaps.load.assert_not_called()
+
     def check(self, root, revision=None, changes='', origin=None, checkout=None):
         root = Path(root).resolve()
         module = SimpleNamespace(__file__=str(origin or root/'src/qso_pcolor/__init__.py'))

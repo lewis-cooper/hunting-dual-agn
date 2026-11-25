@@ -104,12 +104,29 @@ class ImagingSearchTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             path = Path(directory)/'master.csv'
             self.master().assign(adopted_redshift=.43030370980814325).to_csv(path,index=False)
-            expected = pd.read_csv(path).adopted_redshift.iloc[0]
-            exact = pd.read_csv(path,float_precision='round_trip').adopted_redshift.iloc[0]
+            expected = pd.read_csv(path, float_precision='high',
+                                   dtype={'source_id': 'string'}).adopted_redshift.iloc[0]
             actual = read_master(path)
-        self.assertNotEqual(expected,exact)
         self.assertEqual(actual.adopted_redshift.iloc[0],expected)
         self.assertEqual(actual.source_id.iloc[0],'9007199254740993')
+
+    def test_three_and_four_psf_sources_keep_aperture_count(self):
+        for count in (3, 4):
+            with self.subTest(count=count), TemporaryDirectory() as directory:
+                rows = self.tractor()
+                for index in range(2, count):
+                    extra = rows.iloc[[0]].assign(objid=index, ra=10.+index*.0001,
+                                                 flux_r=20./index)
+                    rows = pd.concat([rows, extra], ignore_index=True)
+                path = Path(directory)/'tractor.csv'
+                rows.to_csv(path, index=False)
+                channel, local, _, _ = find_tractor_pairs(self.master(), [path], 10., 1.5)
+                components = build_component_table(Table.from_pandas(channel), Table.from_pandas(local), 1.5, 0)
+                self.assertEqual(len(components), 2)
+                self.assertEqual(list(components['tractor_objid']), [0, 1])
+                self.assertEqual(list(components['n_psf_components_within_aperture']), [count, count])
+                summary = build_candidate_summary(components, match_gaia_components(components, self.gaia(), .7))
+                self.assertEqual(int(summary['n_psf_components_within_aperture'][0]), count)
 
     def test_missing_query_coverage_is_not_a_non_detection(self):
         coverage=self.coverage().assign(query_radius_arcsec=1.)

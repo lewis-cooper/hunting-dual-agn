@@ -4,10 +4,9 @@ from dual_agn.settings import *
 from qso_pcolor import Photometry, RedshiftMatch
 from qso_pcolor.unified import UnifiedPSFModel
 from dual_agn.photometry import configure_dustmaps, RESOLVED_POLICY
-from dual_agn.imaging import join_system_scores
+from dual_agn.imaging import join_system_scores, validate_component_photometry
 from dual_agn.redshift_uncertainty import score_components_with_redshift_errors
 configure_dustmaps()
-models = {name: UnifiedPSFModel.load(path) for name, path in MODEL_BUNDLES.items()}
 components = pd.read_csv(
     IMAGING_ROOT / 'component_photometry.csv',
     dtype=IDENTIFIER_DTYPES,
@@ -18,6 +17,8 @@ candidate_systems = pd.read_csv(
     dtype=IDENTIFIER_DTYPES,
     float_precision='round_trip'
 )
+validate_component_photometry(candidate_systems, components)
+models = {name: UnifiedPSFModel.load(path) for name, path in MODEL_BUNDLES.items()}
 score_rows = []
 for model_name, model in models.items():
     for native_system, group in components.groupby('photometric_system', sort=True):

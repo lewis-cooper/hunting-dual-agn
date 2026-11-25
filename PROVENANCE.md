@@ -38,6 +38,22 @@ retained and flagged. Imaging also requires finite primary PM significance below
 3. The DCR angle threshold of 20 degrees applies once to one-Gaia imaging only.
 Morphology uses R_perp >= 1.05. Quaia redshift errors are propagated in scoring.
 
+Imaging validates exactly two prepared components, distinct Tractor identities,
+unique primary/secondary coordinate matches and consistent adopted system
+redshift metadata before scoring. Both components must explicitly satisfy
+reference-band S/N >= 10, |b| >= 25 degrees and PSF morphology in the selection
+mask itself. The cutflow uses those same quality masks.
+
+Discovery still analyses the two brightest r-band PSF sources in an aperture.
+`n_psf_components_within_aperture` records the full PSF source count, including
+additional sources, in the imaging audit and combined final catalogue. It is
+missing for Gaia-only systems whose apertures were not evaluated by imaging;
+a missing count must not be read as two. Additional sources are not an automatic
+exclusion. This remains a two-component photometric analysis of such fields.
+
+Scoring writes its verified import record to `scorer_provenance.json` in the
+working directory. Spawned blend workers verify their own imports too.
+
 Confirmed lenses are retained and flagged. Removal requires a verified pair
 identity and a confirmed non-lens contaminant classification. Uncertain and
 conflicting cases remain flagged. The reference CSVs and matching rules are
@@ -49,17 +65,24 @@ the historical reference values.
 
 ## Published output snapshot
 
-The tracked `products/` and `figures/` contain the completed 24 November 2026
-reference results: 411 unique candidates, score audits for 712 Gaia-neighbour
-inputs and 1,600 imaging systems, two cutflows, the threshold calibration, and
-18 PDF/PNG figure files. The calibration gives ln R >= -6.81 from 109 systems.
+The tracked `products/` and `figures/` contain the completed 26 November 2026
+candidate workflow from supplied survey catalogues through discovery, component
+preparation, scoring, calibration, morphology, literature auditing and plots.
+Discovery recovers 712 Gaia-neighbour entries; imaging passes 1,600 systems to
+component scoring. The calibration gives ln R >= -6.81 from 109 systems using
+the verified pinned scorer.
 
-This snapshot applied saved visual-inspection exclusions and removed confirmed
-lenses as well as other contaminants. It therefore predates the current policy
-above, which retains confirmed lenses and leaves visual inspection outside the
-automatic workflow. These files are reference results, not a completed rerun
-of the current workflow. The original calibration JSON is preserved without
-retrospectively adding an imported-scorer verification record.
+The method selects 442 unique systems before literature exclusions. Removing
+five confirmed non-lens contaminants leaves 437 unique candidates: 98 resolved,
+39 blended and 335 imaging selections, with 35 shared between the searches.
+Seven candidates match confirmed dual AGN and 26 are flagged as confirmed
+lenses. Visual-inspection exclusions are not applied. The six products and
+18 PDF/PNG figure files were regenerated; the final workflow verification
+passed all checks, including component identities, quality cuts, multiplicity
+metadata, redshift consistency and literature exclusions.
+
+The independent chance-alignment control experiment is not repeated by this
+candidate run. Its rates must be distinguished from the final sample counts.
 
 Regenerated products and figures replace these local files and can be committed
 together once validated. Analysis scripts do not automatically commit or upload

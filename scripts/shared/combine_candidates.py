@@ -57,6 +57,7 @@ def imaging_candidate_records(scores):
         'secondary_pm_missing': imaging_selected.secondary_pm_missing,
         'secondary_pm_pass': imaging_selected.secondary_pm_pass,
         'qso_parent_index': imaging_selected.qso_parent_index,
+        'n_psf_components_within_aperture': imaging_selected.n_psf_components_within_aperture,
         'imaging_primary_log_r_magdep': imaging_selected.primary_log_r_per_unit_z_magdep,
         'imaging_secondary_log_r_magdep': imaging_selected.secondary_log_r_per_unit_z_magdep,
         'imaging_primary_log_r_magindep': imaging_selected.primary_log_r_per_unit_z_magindep,
@@ -138,6 +139,9 @@ def combine_candidates(pipeline='both'):
     ].rename(columns={'input_redshift': 'redshift', 'input_redshift_catalogue': 'redshift_catalogue'}).copy()
     one_records = source_records.loc[source_records.pipeline.eq('one_arcsecond')].set_index('candidate_id')
     image_records = source_records.loc[source_records.pipeline.eq('imaging')].set_index('candidate_id')
+    joint_candidates['n_psf_components_within_aperture'] = joint_candidates.candidate_id.map(
+        image_records.n_psf_components_within_aperture
+        if 'n_psf_components_within_aperture' in image_records else pd.Series(dtype='Int64')).astype('Int64')
     for column in (
         'source_candidate_id',
         'qso_group_id',

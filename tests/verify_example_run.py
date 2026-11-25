@@ -15,7 +15,9 @@ from dual_agn.settings import (FIGURE_ROOT, IDENTIFIER_DTYPES, ONE_ROOT, OUTPUT_
     FINAL_CANDIDATES_PATH, ONE_ARCSECOND_SCORES_PATH, IMAGING_SCORES_PATH,
     IMAGING_CUTFLOW_PATH, THRESHOLD_CALIBRATION_PATH, PM_SIGNIFICANCE_MAX,
     IMAGING_SEARCH_ROOT, LITERATURE_ROOT, LITERATURE_WORK_ROOT,
-    ONE_ARCSECOND_PARENT_PATH, ONE_ARCSECOND_SEARCH_ROOT, ONE_ARCSECOND_CUTFLOW_PATH)
+    ONE_ARCSECOND_PARENT_PATH, ONE_ARCSECOND_SEARCH_ROOT, ONE_ARCSECOND_CUTFLOW_PATH,
+    IMAGING_ROOT, WORK_ROOT, MODEL_REVISION)
+from dual_agn.imaging import imaging_pair_quality, validate_component_photometry
 from dual_agn.score_selection import build_secondary_pm_flags, has_two_distinct_gaia_sources
 from dual_agn.workflow import PIPELINE_CHOICES, product_names, selected_pipelines
 from scripts.shared.crossmatch_literature import EXCLUSION_STAGE
@@ -28,6 +30,8 @@ def checksum(path):
 def verify_outputs(pipeline='both'):
     selected = selected_pipelines(pipeline)
     calibration = json.loads(THRESHOLD_CALIBRATION_PATH.read_text())
+    provenance_path = WORK_ROOT/'scorer_provenance.json'
+    provenance = json.loads(provenance_path.read_text()) if provenance_path.is_file() else {}
     joint = pd.read_csv(FINAL_CANDIDATES_PATH, dtype=IDENTIFIER_DTYPES)
     products = [path for path in OUTPUT_ROOT.iterdir() if path.name != '.DS_Store']
     checks = {
@@ -35,6 +39,9 @@ def verify_outputs(pipeline='both'):
                               and all(path.is_file() for path in products)),
         'threshold_calibrated': calibration['model'] == 'either' and np.isfinite(calibration['adopted_log_r_threshold']),
         'calibration_before_pm_selection': calibration['pm_significance_upper_limit'] == 70,
+        'verified_scoring_provenance': (provenance.get('revision') == MODEL_REVISION
+            and provenance.get('clean_checkout') is True
+            and provenance.get('import_relative_path') == 'src/qso_pcolor/__init__.py'),
         'unique_final_candidates': joint.candidate_id.is_unique,
         'selected_secondary_pm': bool(joint.secondary_pm_pass.all()),
         'confirmed_contaminants_removed': not joint.literature_contaminant_removed.any(),
@@ -73,6 +80,22 @@ def verify_outputs(pipeline='both'):
             and imaging.loc[imaging.candidate_tier.eq('one_gaia'), 'pair_dcr_delta_deg'].gt(20).all()
             and cutflow['Selection stage'].str.contains('DCR').sum() == 1 and 'joint_dcr_pass' not in imaging)
         checks['automatic_imaging_selection'] = imaging.joint_final_pass.equals(imaging.joint_morphology_pass)
+        components = pd.read_csv(IMAGING_ROOT/'component_photometry.csv',
+                                 dtype=IDENTIFIER_DTYPES, float_precision='round_trip')
+        validate_component_photometry(imaging, components)
+        checks['imaging_component_integrity'] = True
+        quality = imaging_pair_quality(components)
+        checks['explicit_imaging_quality_cuts'] = bool(
+            imaging.loc[imaging.joint_final_pass, 'qso_parent_index'].map(quality.all(axis=1)).all()
+            and all(imaging[f'both_components_{column}'].equals(
+                imaging.qso_parent_index.map(quality[column])) for column in quality))
+        joint_imaging = joint.selected_by_imaging
+        expected_count = joint.loc[joint_imaging, 'imaging_qso_parent_index'].map(
+            imaging.set_index('qso_parent_index').n_psf_components_within_aperture)
+        checks['aperture_multiplicity_in_final_catalogue'] = bool(
+            np.array_equal(joint.loc[joint_imaging, 'n_psf_components_within_aperture'].to_numpy(),
+                           expected_count.to_numpy())
+            and joint.loc[~joint_imaging, 'n_psf_components_within_aperture'].isna().all())
         final_row = cutflow.loc[cutflow['Selection stage'].eq(EXCLUSION_STAGE)]
         checks['imaging_literature_cutflow_counts'] = len(final_row) == 1 and int(final_row.Total.iloc[0]) == int(imaging.literature_final_pass.sum())
         search = json.loads((IMAGING_SEARCH_ROOT/'search_summary.json').read_text())

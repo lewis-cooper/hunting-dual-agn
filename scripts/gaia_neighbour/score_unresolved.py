@@ -20,8 +20,10 @@ from dual_agn.blend_outputs import (build_blend_metadata, checkpoint_blend_score
 
 
 def load_worker_dustmaps():
+    from dual_agn.provenance import verify_imported_scorer
     from dustmaps.config import config
 
+    verify_imported_scorer()
     config.fname = str(WORK_ROOT / 'dustmaps_configuration.json')
     config.load()
 

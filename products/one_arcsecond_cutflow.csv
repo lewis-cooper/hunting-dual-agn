@@ -7,15 +7,13 @@ Resolved,Remaining model eligibility/support requirements,172,190,195
 Resolved,Finite ln R,172,190,195
 Resolved,ln R >= -6.81,123,135,144
 Resolved,Secondary Gaia PM significance < 3 (missing retained),94,95,101
-Resolved,Visual inspection,93,94,100
 Unresolved,Assigned to route,321,321,321
 Unresolved,|b| >= 25 degrees,149,149,149
-Unresolved,Usable reference-band photometry,145,145,145
-Unresolved,Redshift within model support,142,142,142
-Unresolved,Reference-band S/N >= 20,141,141,141
-Unresolved,Finite QQ-QS log Bayes factor,139,139,139
-Unresolved,QQ favoured,45,47,51
-Unresolved,Secondary Gaia PM significance < 3 (missing retained),39,41,44
-Unresolved,Visual inspection,39,41,44
-Resolved,Confirmed literature contaminant removal,81,82,88
-Unresolved,Confirmed literature contaminant removal,36,38,41
+Unresolved,Usable reference-band photometry,147,147,147
+Unresolved,Redshift within model support,144,144,144
+Unresolved,Reference-band S/N >= 20,142,142,142
+Unresolved,Finite QQ-QS log Bayes factor,140,140,140
+Unresolved,QQ favoured,36,36,45
+Unresolved,Secondary Gaia PM significance < 3 (missing retained),32,31,40
+Resolved,Confirmed non-lens literature contaminant removal,91,92,98
+Unresolved,Confirmed non-lens literature contaminant removal,31,30,39
