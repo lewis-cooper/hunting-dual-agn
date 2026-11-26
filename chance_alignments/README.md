@@ -59,7 +59,9 @@ master/Quaia schema is in the [input guide](../DATA.md).
    donors, and score their flux sums. Preserve the original 100 Legacy / 20
    fallback mock allocation, targeted coverage extension and Legacy expansion.
 5. **Report:** assemble batches, retain shared source/field identities, calculate
-   weighted rates and 95% uncertainty, and write tables, figures and `RESULTS.md`.
+   weighted rates and 95% uncertainty, compare detected close neighbours with
+   the 10–60 arcsec density in the same fields, and write tables, figures and
+   `RESULTS.md`.
 
 The maximum library has 60,000 real catalogue fields. The test pairs are
 constructed associations between real sources, not 60,000 observed close pairs.
@@ -75,6 +77,13 @@ under `run/paired_60000/`:
 - `repaired_summary_by_route.csv` and `repaired_summary_by_latitude.csv`;
 - individual component/blended score Parquets and matching audits;
 - magnitude-matching and separate outer-neighbour density diagnostics;
+- `matched_density_comparison.csv`: observed close counts and geometric random
+  predictions at several radii, including checks using 10–30 and 30–60 arcsec;
+- `matched_density_field_counts.csv`: per-field counts, exact Gaia identities
+  and population weights, including fields with no neighbours;
+- `observed_vs_field_density.pdf` / `.png` and `FIELD_DENSITY.md`;
+- `field_density_inputs/`: the source catalogue, central Gaia IDs, complete
+  close/outer Gaia detections, coverage and query metadata needed for replay;
 - `repaired_control_pass_rates.pdf` / `.png` and `RESULTS.md`.
 
 Files with `repaired` in their names contain the matched-control results.
@@ -88,7 +97,7 @@ With the separately supplied control-data archive unpacked:
 
 ```sh
 python run_chance_alignments.py --replay-data /path/to/control_data --verify-reference
-python -m unittest discover -s verification -p 'test_*.py'
+python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 The replay recalculates the statistics from individual control rows, checks their
@@ -96,6 +105,32 @@ weights and identities, and compares five numerical result tables to the supplie
 reference. It needs no production model assets or survey queries. A fresh rebuild
 does not need this archive: its input descriptors are generated from vetting and
 its field lists are sampled from the supplied full catalogues.
+
+New control-data bundles need a `field_density/` directory containing the
+four files exported under `run/paired_60000/field_density_inputs/`:
+`master_targets.csv`, `gaia_neighbours.parquet`, `cone_coverage.csv` and
+`query_configuration.json`. The Gaia table includes the central sources so
+they can be excluded by exact identity, rather than an assumed position cut.
+Keep this data directory separate from the replay output.
+
+Older control archives omit the central Gaia IDs and coverage metadata.
+Supply the completed source cones explicitly when replaying those archives:
+
+```sh
+python run_chance_alignments.py --replay-data /path/to/control_data \
+  --density-source /path/to/run/fields_60000 --verify-reference
+```
+
+The replay exports the density inputs again, regenerates the matched comparison
+and includes it in `RESULTS.md`. The five historical reference tables are checked
+as before; the new comparison additionally validates source identities and cone
+coverage. For a density-only calculation from cached cones:
+
+```sh
+python -m chance_alignments.engine.analyze_field_density \
+  --source /path/to/run/fields_60000 --output /path/to/density_results \
+  --export-inputs /path/to/control_data/field_density
+```
 
 The public control entry point is `run_chance_alignments.py`.
 `run_controls.py` implements its execution sequence and `reproduce_results.py`
@@ -121,6 +156,15 @@ implements offline replay.
   available band masks and empirical pair factors remain transfer assumptions.
 - The 10-60 arcsec density tables are separate geometric diagnostics. They do not
   produce a selected-sample contamination estimate or distinguish lenses from duals.
+- The matched comparison predicts close counts by scaling outer counts by
+  `theta**2 / (60**2 - 10**2)`, assuming complete detection. Both the raw sample
+  counts and the inclusion-weighted population estimates are reported. The
+  observed/predicted ratio measures neither the unrelated fraction nor detection
+  completeness: missed close detections and associated companions are not
+  independently constrained. Agreement alone would not show that most input pairs
+  are chance alignments. Do not combine pooled densities and pass rates into a
+  claimed actual contaminant count. Bootstrap intervals exclude completeness and
+  population-transfer uncertainty.
 
 No personal credentials, input catalogues, control archives or generated
 figures are included in Git.

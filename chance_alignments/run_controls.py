@@ -179,6 +179,9 @@ def run(config, stage, resume=False, dry_run=False, resample=False):
                     ['--output', paired60, '--bootstrap', config['bootstrap']])
             execute('summarize_density', 'summarize_parent_densities.py',
                     ['--source', source60, '--output', paired60, '--bootstrap', config['bootstrap']])
+            execute('compare_close_density', 'analyze_field_density.py',
+                    ['--source', source60, '--output', paired60, '--bootstrap', config['bootstrap'],
+                     '--export-inputs', paired60/'field_density_inputs'])
             execute('plot_matching', 'plot_control_matching.py',
                     ['--output', paired60, '--blended-trials', paired60/'blend_control_scores.parquet'])
             execute('write_report', 'write_precision_report.py', ['--output', paired60])

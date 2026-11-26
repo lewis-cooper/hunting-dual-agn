@@ -71,13 +71,24 @@ def write_report(root):
         'The 10–60 arcsec density products are separate neighbourhood diagnostics under '
         'C=1 geometric scaling. They are not combined with these pass rates to infer a '
         'candidate count. The stellar close/outer ratio is confounded by physical stellar '
-        'binaries and is not used as a measured detection probability.', '',
-        '## Products', '',
+        'binaries and is not used as a measured detection probability.', '']
+    density_report = root/'FIELD_DENSITY.md'
+    if density_report.is_file():
+        lines += density_report.read_text().splitlines() + ['']
+    else:
+        lines += ['## Matched field-density check', '',
+                  'Not yet evaluated. Run the report stage with complete close/outer Gaia '
+                  'cones before drawing conclusions about close-neighbour field density.', '']
+    lines += ['## Products', '',
         '- `repaired_summary_by_route.csv`: pass rates, intervals, coverage and missing-outcome bounds.',
         '- `repaired_summary_by_latitude.csv`: the same quantities split by Galactic latitude.',
         '- `repaired_control_pass_rates.pdf` / `.png`: main and check annuli by latitude.',
         '- `control_magnitude_matching.csv` / `.pdf` / `.png`: magnitude-matching diagnostics.',
         '- `parent_densities_by_latitude.csv` / `local_density_scenarios.pdf`: neighbourhood diagnostics.',
+        '- `matched_density_comparison.csv`: same-field close counts and geometric predictions.',
+        '- `matched_density_field_counts.csv`: per-field counts, exact IDs and inclusion weights.',
+        '- `observed_vs_field_density.pdf` / `.png` and `FIELD_DENSITY.md`: density comparison.',
+        '- `field_density_inputs/`: raw close/outer Gaia data and coverage for offline replay.',
         '- Individual control score Parquets retain source identities, scores and flags.', '']
     (root/'RESULTS.md').write_text('\n'.join(lines))
 

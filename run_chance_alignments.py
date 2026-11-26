@@ -134,13 +134,18 @@ def main():
     parser.add_argument('--replay-data', type=Path, help='Optional previously supplied control_data directory')
     parser.add_argument('--replay-output', type=Path, default=ROOT/'chance_alignment_work/replay')
     parser.add_argument('--verify-reference', action='store_true')
+    parser.add_argument('--density-source', type=Path,
+                        help='Replay only: complete close/outer Gaia cones for an older control archive')
     args = parser.parse_args()
     if args.replay_data:
         if args.config or args.stage != 'all' or args.dry_run:
             parser.error('Use replay options separately from a full-run config/stage.')
         from chance_alignments.reproduce_results import reproduce
-        reproduce(args.replay_data, args.replay_output, verify_reference=args.verify_reference)
+        reproduce(args.replay_data, args.replay_output, verify_reference=args.verify_reference,
+                  density_source=args.density_source)
         return
+    if args.density_source:
+        parser.error('--density-source is used with --replay-data only.')
     if not args.config:
         parser.error('Supply --config for a fresh run, or --replay-data for an offline replay.')
     run_full(resolve_config(args.config), args.stage, args.resume, args.dry_run)

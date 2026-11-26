@@ -45,11 +45,20 @@ def compare_reference(output, reference):
     print('All five numerical result tables reproduce the reference values.', flush=True)
 
 
-def reproduce(data, output, bootstrap=1000, seed=20261121, verify_reference=False):
+def reproduce(data, output, bootstrap=1000, seed=20261121, verify_reference=False, density_source=None):
     data = data.resolve()
     output = output.resolve()
     if output == data or data.is_relative_to(output) or output.is_relative_to(data):
         raise ValueError('Use a separate output folder, outside the supplied control data.')
+    density_source = Path(density_source).resolve() if density_source else data/'field_density'
+    required_density = ['master_targets.csv', 'cone_coverage.csv',
+                        'gaia_neighbours.parquet', 'query_configuration.json']
+    missing_density = [str(density_source/name) for name in required_density if not (density_source/name).is_file()]
+    if missing_density:
+        raise FileNotFoundError('Matched-field replay needs complete close/outer Gaia cones with exact '
+            'central IDs and coverage. Older control archives lack these inputs. Supply '
+            '--density-source /path/to/fields_60000 or add the exported field_density_inputs '
+            'directory to control_data as field_density. Missing files:\n'+'\n'.join(missing_density))
     output.mkdir(parents=True, exist_ok=True)
     for name in ['input_pairs.csv', 'pair_cut_factors.csv',
                  'component_control_scores.parquet', 'blend_control_scores.parquet']:
@@ -59,6 +68,9 @@ def reproduce(data, output, bootstrap=1000, seed=20261121, verify_reference=Fals
         shutil.copy2(source, output/name)
     validate_controls(output)
     commands = [
+        ('analyze_field_density.py', ['--source', density_source, '--output', output,
+                                     '--bootstrap', bootstrap, '--seed', seed,
+                                     '--export-inputs', output/'field_density_inputs']),
         ('summarize_repaired_controls.py', ['--output', output, '--bootstrap', bootstrap, '--seed', seed]),
         ('summarize_parent_densities.py', ['--source', data/'density', '--output', output,
                                          '--bootstrap', bootstrap, '--seed', seed]),
@@ -85,7 +97,8 @@ if __name__ == '__main__':
     parser.add_argument('--bootstrap', type=int, default=1000)
     parser.add_argument('--seed', type=int, default=20261121)
     parser.add_argument('--verify-reference', action='store_true')
+    parser.add_argument('--density-source', type=Path, help='Complete Gaia cones for older replay archives')
     args = parser.parse_args()
     if args.bootstrap < 100:
         parser.error('Use at least 100 replicates; the reference calculation uses 1000.')
-    reproduce(args.data, args.output, args.bootstrap, args.seed, args.verify_reference)
+    reproduce(args.data, args.output, args.bootstrap, args.seed, args.verify_reference, args.density_source)
