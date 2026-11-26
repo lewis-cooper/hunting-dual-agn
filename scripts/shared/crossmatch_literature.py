@@ -111,6 +111,7 @@ def main():
     summary = {
         'pipeline': args.pipeline, 'counts': counts, 'search_radius_arcsec': args.search_radius_arcsec,
         'redshift_used_for_matching': False,
+        'dual_match_policy': 'A published position within the search radius of either candidate component is sufficient; both component positions are not required.',
         'binary_reference_records': int(references.reference_catalogue.eq('known_binaries').sum()),
         'contaminant_reference_records': int(references.reference_catalogue.eq('known_lenses_contaminants').sum()),
         'references_without_positions': references.loc[references.ra_deg.isna(), ['reference_id', 'system_name']].to_dict('records'),

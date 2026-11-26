@@ -8,9 +8,15 @@ candidate identifiers, private survey inputs or candidate-derived coordinates.
 `known_binaries.csv` contains 55 distinct confirmed dual-AGN systems within
 0 <= redshift <= 4 and 0 < angular separation <= 1.5 arcsec. A compilation's
 explicit confirmed label is accepted. Disputed dual/lens cases are excluded
-from this confirmed set. J0400+2754 and J2332+2243 have no usable precise
-coordinates and remain present with blank positions. Coordinates are never
-invented from an abbreviated J name.
+from this confirmed set. A 27 November 2026 astrometry refresh adds Gaia DR3
+target positions for J0400+2754 and J2332+2243, corroborated by named Keck
+OSIRIS observations, and separate SIMBAD component positions and exact Gaia
+identifiers for J0402-3237. All 55 systems now have a usable target position;
+this does not mean both nuclei have separate published absolute coordinates.
+J1552+3009 retains a single published component position, which is sufficient
+for a dual-AGN match under the adopted single-component rule. Coordinates
+are never invented from an abbreviated J name. Record-level astrometry sources
+link the public evidence.
 
 `known_lenses_contaminants.csv` contains 1,617 published pair/classification
 records. Its sources include the GraL X Table A.1 lens images, Lemon et al.
@@ -28,7 +34,7 @@ a close pair can comprise two images of a wider multiple lens.
 | Columns | Meaning |
 | --- | --- |
 | `reference_id`, `system_id`, `system_name` | Unique reference-record key, literature system/alias label and published name. Different aliases can describe the same physical system. |
-| `ra_deg`, `dec_deg` | Published component or system position, in J2000 degrees. Its role and origin are given by `astrometry_source`. |
+| `ra_deg`, `dec_deg` | Published component or system position, in degrees. Its role, origin and epoch are given by `astrometry_source`; the recovered Gaia DR3 target positions use ICRS epoch 2016.0 and the J0402 SIMBAD component positions are displayed at epoch J2000. |
 | `secondary_ra_deg`, `secondary_dec_deg` | Second component position when published or derivable from a published component position, separation and position angle. Derived positions are explicitly labelled. |
 | `redshift`, `secondary_redshift` | Published system/component redshifts where available. Blank means unavailable; these values do not gate matches. |
 | `separation_arcsec`, `position_angle_deg` | Published or explicitly derived pair geometry; PA runs north through east. |
@@ -41,7 +47,16 @@ a close pair can comprise two images of a wider multiple lens.
 
 ## Pair identification
 
-The default 1 arcsec radius is only a finder. The matcher accepts identical
+For the confirmed dual-AGN comparison, a published source position within the
+default 1 arcsec radius of either candidate component is sufficient to count
+a match. Redshift is not used to decide matches. The audit records
+`single_component_position` when separate pair evidence is unavailable.
+Exact Gaia pairs, two-component astrometry and reviewed geometry are retained
+as more detailed evidence categories; these are not prerequisites for counting
+a confirmed-dual counterpart.
+
+For lens and contaminant references, the 1 arcsec radius is only a finder.
+The matcher accepts identical
 unordered pairs of two distinct Gaia IDs or both component positions within
 the listed tolerance, allowing exchanged primary/secondary labels. Gaia and
 precise published component pairs normally use 0.1 arcsec. ERIS positions
@@ -62,8 +77,9 @@ with the pair midpoint. This is used for the previously reviewed J2302-4154
 projection: its rounded system position agrees within 0.3 arcsec and its
 reported 1.22 arcsec separation must agree within 0.15 arcsec. Its published
 foreground redshift depends on a single-line identification; that qualification
-remains in the notes. `position_only` records remain possible associations
-unless both published Gaia IDs establish the pair.
+remains in the notes. `position_only` lens or contaminant records remain possible associations
+unless independent pair evidence establishes the pair. A single-position dual
+match never relaxes the contaminant-removal rules.
 
 ## Classification policy
 

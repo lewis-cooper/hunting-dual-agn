@@ -1,4 +1,4 @@
-"""Match published systems while keeping finder associations distinct from pair identities."""
+"""Match dual AGN by either component; require pair evidence for contaminants."""
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -147,6 +147,10 @@ def match_references(candidates, references, search_radius_arcsec=1.0):
                 angle_agrees = not np.isfinite(axis_difference) or axis_difference <= 5.0
                 if primary_agrees and separation_agrees and angle_agrees:
                     method = reference.match_rule
+            # A single component within the finder radius suffices for the dual-AGN comparison.
+            # Contaminants still require the independent pair-identification rules above.
+            if method == 'possible_positional_association' and reference.reference_catalogue == 'known_binaries':
+                method = 'single_component_position'
             verified = method != 'possible_positional_association'
             confirmed_contaminant = reference.classification in CONFIRMED_CONTAMINANTS
             uncertain = reference.classification in UNCERTAIN_CLASSIFICATIONS

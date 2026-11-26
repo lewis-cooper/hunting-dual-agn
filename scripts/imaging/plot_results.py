@@ -286,7 +286,7 @@ for tier, label, colour, linestyle in [('one_gaia', 'One Gaia', 'tab:blue', '--'
     )
 axis.set(
     xlabel='Projected separation, $r_{\\mathrm{p}}$ [kpc]',
-    ylabel=f'$N$ systems per {separation_bin_width_kpc:g} kpc bin',
+    ylabel='$N$ systems',
     xlim=(0, separation_maximum_kpc),
     ylim=(0, None)
 )

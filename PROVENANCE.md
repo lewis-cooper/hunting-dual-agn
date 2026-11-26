@@ -75,8 +75,14 @@ the verified pinned scorer.
 The method selects 442 unique systems before literature exclusions. Removing
 five confirmed non-lens contaminants leaves 437 unique candidates: 98 resolved,
 39 blended and 335 imaging selections, with 35 shared between the searches.
-Seven candidates match confirmed dual AGN and 26 are flagged as confirmed
-lenses. Visual-inspection exclusions are not applied. The six products and
+After the 27 November literature-coordinate refresh, nine candidates match
+confirmed dual AGN and 26 are flagged as confirmed lenses. The refresh adds
+independent component identifiers for J0402-3237 and target coordinates for
+J0400+2754 and J2332+2243. The confirmed-dual comparison counts a published
+position within 1 arcsec of either candidate component; this also accepts
+J1552+3009, whose second absolute coordinate is unavailable. Contaminant
+removal still requires the existing pair evidence. Candidate membership and
+scores are unchanged. Visual-inspection exclusions are not applied. The six products and
 18 PDF/PNG figure files were regenerated; the final workflow verification
 passed all checks, including component identities, quality cuts, multiplicity
 metadata, redshift consistency and literature exclusions.

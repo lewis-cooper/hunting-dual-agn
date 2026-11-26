@@ -51,6 +51,22 @@ class LiteratureTests(unittest.TestCase):
         self.assertFalse(audit.literature_contaminant_removed.any())
         self.assertTrue(audit.literature_possible_association.all())
 
+    def test_confirmed_dual_needs_only_one_component_position(self):
+        associations, audit = self.audit(self.reference(
+            classification='confirmed_dual_agn', reference_catalogue='known_binaries',
+            secondary_ra_deg=np.nan, secondary_dec_deg=np.nan, match_rule='position_only'))
+        self.assertEqual(associations.verification_method.tolist(), ['single_component_position'])
+        self.assertTrue(audit.literature_confirmed_dual.all())
+        self.assertFalse(audit.literature_contaminant_removed.any())
+
+    def test_confirmed_dual_can_match_only_the_secondary_component(self):
+        associations, audit = self.audit(self.reference(
+            classification='confirmed_dual_agn', reference_catalogue='known_binaries',
+            ra_deg=10.0003, secondary_ra_deg=np.nan, secondary_dec_deg=np.nan,
+            match_rule='position_only', position_tolerance_arcsec=.01))
+        self.assertTrue(associations.match_verified.all())
+        self.assertTrue(audit.literature_confirmed_dual.all())
+
     def test_one_shared_gaia_id_is_insufficient(self):
         associations, audit = self.audit(self.reference(secondary_ra_deg=10.0004,
             primary_gaia_source_id='9007199254740993', secondary_gaia_source_id='9007199254740997'))
@@ -128,8 +144,20 @@ class LiteratureTests(unittest.TestCase):
                                      LITERATURE_ROOT/'known_lenses_contaminants.csv')
         binaries = references.loc[references.reference_catalogue.eq('known_binaries')]
         self.assertEqual(len(binaries), 55)
-        self.assertEqual(set(binaries.loc[binaries.ra_deg.isna(), 'system_name']),
-                         {'J0400+2754', 'J2332+2243'})
+        self.assertFalse(binaries[['ra_deg', 'dec_deg']].isna().any().any())
+        recovered = binaries.set_index('system_id').loc[['J0400+2754', 'J2332+2243']]
+        self.assertEqual(recovered.primary_gaia_source_id.tolist(),
+                         ['163756524496716928', '2827616806226235264'])
+        self.assertTrue(recovered.match_rule.eq('position_only').all())
+        self.assertTrue(recovered.secondary_ra_deg.isna().all())
+        self.assertTrue(recovered.astrometry_source.str.contains('epoch 2016.0', regex=False).all())
+        component_pair = binaries.set_index('system_id').loc['J0402-3237']
+        self.assertEqual(component_pair.match_rule, 'component_pair')
+        self.assertEqual({component_pair.primary_gaia_source_id, component_pair.secondary_gaia_source_id},
+                         {'4883452822861115776', '4883452827156674176'})
+        single_position = binaries.set_index('system_id').loc['J1552+3009']
+        self.assertEqual(single_position.match_rule, 'position_only')
+        self.assertTrue(np.isnan(single_position.secondary_ra_deg))
         j0823 = references.loc[references.system_id.eq('J0823+2418')]
         self.assertFalse(j0823.empty)
         self.assertTrue(j0823.classification.eq('likely_lens').all())
