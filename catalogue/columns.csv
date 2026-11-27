@@ -1,0 +1,30 @@
+column,unit,description
+candidate_id,,Stable identifier linking the system to the automatic score audits.
+system_name,,J-coordinate name from the adopted primary ICRS position; RA seconds rounded to two decimals and Dec seconds to one.
+original_system_name,,Unmodified name or native catalogue identifier in the automatic catalogue.
+tier,,main: two distinct Gaia detections; additional: one-Gaia imaging selection.
+selection_route,,"All selecting routes, separated by semicolons: gaia_resolved, gaia_unresolved, imaging_one_gaia or imaging_two_gaia."
+primary_ra_deg,deg,"Adopted primary right ascension, ICRS."
+primary_dec_deg,deg,"Adopted primary declination, ICRS."
+secondary_ra_deg,deg,"Adopted secondary right ascension, ICRS."
+secondary_dec_deg,deg,"Adopted secondary declination, ICRS."
+separation_arcsec,arcsec,Angular component separation from the automatic catalogue.
+redshift,,"Adopted system redshift; a shared component redshift is an assumption, not confirmation."
+redshift_catalogue,,Catalogue supplying the adopted redshift.
+adopted_redshift_error_used,,Additional redshift uncertainty used in scoring; zero for spectroscopic redshifts.
+redshift_treatment,,Fixed spectroscopic redshift or marginalisation over a photometric redshift uncertainty.
+projected_separation_kpc,kpc,Projected separation assuming both components share the adopted redshift; Planck18 cosmology.
+primary_gaia_source_id,,"Exact Gaia DR3 identifier of the primary, stored as text."
+secondary_gaia_source_id,,Exact Gaia DR3 identifier of the secondary; blank when absent.
+selected_by_resolved,,True when selected by the resolved Gaia-neighbour route.
+selected_by_unresolved,,True when selected by the unresolved Gaia-neighbour route.
+selected_by_imaging,,True when selected by the imaging search.
+selected_by_both_searches,,True when selected by both Gaia-neighbour and imaging searches.
+imaging_selection_route,,one_gaia or two_gaia for imaging selections; blank otherwise.
+secondary_pm_significance,,"Secondary Gaia proper-motion significance, when measured."
+secondary_pm_missing,,True when a two-Gaia system has no usable secondary proper-motion significance.
+n_psf_components_within_aperture,,"Number of Tractor PSF sources inside the imaging search aperture, when available."
+literature_class,,"dual_agn, lens, uncertain or unclassified; literature identifications are not new confirmations."
+literature_reference_ids,,Identifiers of the matching records in the literature comparison catalogues.
+literature_author_year,,Author/year labels for literature classifications.
+literature_publication_urls,,Source-paper links for literature classifications.

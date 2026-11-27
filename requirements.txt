@@ -8,3 +8,4 @@ dustmaps>=1.0
 requests>=2.31
 pyarrow>=17.0
 # Install qso_p_color from the pinned public revision in README.md.
+healpy>=1.17

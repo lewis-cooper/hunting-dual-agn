@@ -127,3 +127,15 @@ Visual inspection is outside the workflow. The two cited literature CSVs are
 included; [data/literature/README.md](data/literature/README.md) explains their matching and
 classification policy. The optional chance-alignment experiment is separate
 from the local candidate workflow and retains its own public control acquisition.
+
+## Publication catalogue
+
+The automatic catalogue in `products/final_candidates.csv` is distinct from the
+curated publication files in `catalogue/`. `data/publication/exclusions.csv`
+records the externally identified corrupted-data artefact, with exact Gaia
+identities and its exclusion reason. `export_catalogue.py` applies that explicit
+decision after selection, preserves original names and stable IDs, and writes
+the combined publication catalogue and its two tier tables. No scoring or
+selection threshold is changed. The Euclid visual-review inputs are described
+in `data/publication/README.md`; image cutouts and MOC FITS files remain supplied
+local observations.

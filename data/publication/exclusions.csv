@@ -1,0 +1,2 @@
+candidate_id,primary_gaia_source_id,secondary_gaia_source_id,classification,reason
+joint:one_arcsecond:QSO_CNT1_GT1_000188,936386021096949248,936386025389927808,imaging_artefact,Corrupted data identified during visual inspection

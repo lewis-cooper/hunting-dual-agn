@@ -173,3 +173,32 @@ have been checked. The published run is described in
 ## Optional method controls
 
 See [chance_alignments/README.md](chance_alignments/README.md) for the separately requested control experiment.
+
+## Export the publication catalogue
+
+After the automatic selection, generate the curated catalogue and both tier
+tables with one command:
+
+```sh
+python export_catalogue.py --exclusions data/publication/exclusions.csv
+```
+
+This writes `catalogue/final_candidates.csv`, `main_tier.csv`,
+`additional_tier.csv` and the column dictionary. It checks the exact Gaia
+component identities before applying the supplied exclusion. The automatic
+catalogue and score audits remain unchanged. For another input population,
+omit `--exclusions` or supply decisions appropriate to that population.
+
+Use `--latex-output-dir /path/to/paper/tables` to generate the two paper previews
+and the column-description table from those same rows. LaTeX outputs are not
+part of the public catalogue directory.
+
+For a Euclid recount, copy `configs/euclid.example.json` to
+`euclid_inputs.local.json` and supply local footprint MOCs and the existing
+image-cache manifest. Add `--euclid-config euclid_inputs.local.json` to the
+export command. The export then checks both component positions and actual VIS
+pixels, joins the explicit visual reviews, and writes the coverage audit and
+counts. A partial cutout is usable when both component positions have valid
+data in a 3-by-3-pixel patch. Resolved versus blended multiplicity is a supplied
+visual assessment; the script does not infer an AGN classification from pixels.
+No data are downloaded by either export script.

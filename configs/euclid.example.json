@@ -1,0 +1,6 @@
+{
+  "wide_moc": "../data/inputs/euclid/qso-euclid-dr1-wide-moc.fits",
+  "deep_moc": "../data/inputs/euclid/qso-euclid-dr1-deep-moc.fits",
+  "grid_records": "../data/inputs/euclid/validated.json",
+  "classifications": "../data/publication/euclid_visual_classifications.csv"
+}

@@ -36,3 +36,5 @@ quasar_catalogue.local.json
 wsdb_inputs.local.json
 .pgpass
 .pg_service.conf
+
+euclid_inputs.local.json
