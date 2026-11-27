@@ -13,8 +13,10 @@ Users supply the quasar catalogue, survey extracts, coverage records and FITS
 images. Observations, model assets and credentials are not distributed here.
 Generated products and figures are tracked. The published full pipeline run
 contains 437 candidates, retaining confirmed lenses and leaving visual inspection
-outside the automatic selection; see [provenance](PROVENANCE.md). The optional
-chance-alignment experiment has its own control-data acquisition.
+outside the automatic selection; see [provenance](PROVENANCE.md). The `tier`
+column labels systems with two distinct Gaia detections as `main` and one-Gaia
+imaging systems as `additional`. Tier assignment does not change selection.
+The optional chance-alignment experiment has its own control-data acquisition.
 
 Start with `run_analysis.py --pipeline both`; either `gaia_neighbour` or `imaging`
 can also be selected. Input configuration and installation are required first.

@@ -7,16 +7,17 @@ from astropy.cosmology import Planck18
 import numpy as np
 import pandas as pd
 
+from dual_agn.candidate_tiers import assign_candidate_tiers
 from dual_agn.plot_style import plt
 from dual_agn.settings import FIGURE_ROOT, FINAL_CANDIDATES_PATH
 
 
 CANDIDATE_STYLES = {
-    'Imaging: one Gaia': ('Imaging only: one Gaia', '#00BFD8', 'o', 48),
-    'Imaging: two Gaia': ('Imaging only: two Gaia', '#E832A2', 'D', 52),
-    'One-arcsecond resolved': ('One-arcsecond only: resolved', 'tab:red', '^', 42),
-    'One-arcsecond unresolved': ('One-arcsecond only: unresolved', 'tab:orange', 'v', 42),
-    'Both searches': ('Recovered by both searches', 'black', 'P', 52),
+    'One-arcsecond resolved': ('Gaia neighbour (resolved)', 'tab:red', '^', 42),
+    'One-arcsecond unresolved': ('Gaia neighbour (unresolved)', 'tab:orange', 'v', 42),
+    'Imaging: two Gaia': ('Imaging (two-Gaia)', '#E832A2', 'D', 52),
+    'Both searches': ('Both searches', 'black', 'P', 52),
+    'Imaging: one Gaia': ('Imaging (one-Gaia)', '#00BFD8', 'o', 48),
 }
 PAPER_STYLE = {
     'font.serif': ['Computer Modern Roman', 'CMU Serif', 'DejaVu Serif'],
@@ -38,10 +39,11 @@ PAPER_STYLE = {
 def read_candidates(candidates_path):
     candidates = pd.read_csv(
         candidates_path,
-        usecols=['candidate_id', 'plot_group', 'redshift', 'projected_separation_kpc'],
-        dtype={'candidate_id': 'string', 'plot_group': 'string'},
+        dtype={'candidate_id': 'string', 'plot_group': 'string',
+               'primary_gaia_source_id': 'string', 'secondary_gaia_source_id': 'string'},
         float_precision='round_trip',
     )
+    candidates = assign_candidate_tiers(candidates)
     if candidates.candidate_id.isna().any() or not candidates.candidate_id.is_unique:
         raise ValueError('The final catalogue must have a unique, non-missing candidate_id per system.')
     unknown_groups = ~candidates.plot_group.isin(CANDIDATE_STYLES)
@@ -76,9 +78,12 @@ def plot_candidates(candidates, figure_directory, dpi):
             print(f'{label}: {len(selected)}')
             if selected.empty:
                 continue
+            additional = selected.tier.eq('additional').all()
+            label = ('Additional: ' if additional else 'Main: ') + label
             axis.scatter(
                 selected.redshift, selected.projected_separation_kpc,
-                s=size, color=colour, marker=marker, edgecolors='black',
+                s=size, facecolors='none' if additional else colour, marker=marker,
+                edgecolors=colour if additional else 'black',
                 linewidths=0.55, alpha=0.82, zorder=3, label=label,
             )
 

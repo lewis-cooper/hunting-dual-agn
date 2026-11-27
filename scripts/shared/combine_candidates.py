@@ -1,5 +1,6 @@
 import argparse
 from dual_agn.redshift_inputs import redshift_errors
+from dual_agn.candidate_tiers import assign_candidate_tiers
 from pathlib import Path
 import json
 import numpy as np
@@ -289,6 +290,7 @@ def combine_candidates(pipeline='both'):
         ],
         default='Imaging: two Gaia'
     )
+    joint_candidates = assign_candidate_tiers(joint_candidates)
     WORK_ROOT.mkdir(parents=True, exist_ok=True)
     joint_candidates.to_csv(PRE_LITERATURE_CANDIDATES_PATH, index=False)
     joint_candidates.to_csv(FINAL_CANDIDATES_PATH, index=False)

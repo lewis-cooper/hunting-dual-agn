@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from dual_agn.candidate_tiers import assign_candidate_tiers
 from dual_agn.literature import (LITERATURE_FLAG_COLUMNS, LITERATURE_TEXT_COLUMNS,
                         annotate_candidates, match_references, read_references)
 from dual_agn.settings import (FINAL_CANDIDATES_PATH, IDENTIFIER_DTYPES, IMAGING_CUTFLOW_PATH,
@@ -86,6 +87,7 @@ def main():
     if not args.candidates.is_file():
         parser.error(f'Missing {args.candidates}; run python -m scripts.shared.combine_candidates first.')
     candidates = pd.read_csv(args.candidates, dtype=IDENTIFIER_DTYPES, float_precision='round_trip')
+    candidates = assign_candidate_tiers(candidates)
     references = read_references(args.binaries, args.contaminants)
     associations = match_references(candidates, references, args.search_radius_arcsec)
     candidate_audit = annotate_candidates(candidates, associations)
@@ -99,6 +101,8 @@ def main():
               'unresolved': int(final_candidates.selected_by_unresolved.sum()),
               'imaging': int(final_candidates.selected_by_imaging.sum()),
               'shared': int(final_candidates.selected_by_both_searches.sum()),
+              'main_tier': int(final_candidates.tier.eq('main').sum()),
+              'additional_tier': int(final_candidates.tier.eq('additional').sum()),
               'confirmed_dual_matches': int(final_candidates.literature_confirmed_dual.sum()),
               'confirmed_lenses_retained': int(final_candidates.literature_confirmed_lens.sum()),
               'uncertain_classification_flags': int(final_candidates.literature_uncertain_classification.sum())}
